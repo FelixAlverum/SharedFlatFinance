@@ -6,6 +6,10 @@ class Settings(BaseSettings):
     # CORS is critical! This tells the backend to accept requests from your SvelteKit frontend
     BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:4173"]
 
+    SECRET_KEY: str = "KurtKoerberSchluesselInDieKassenbuecherDerWG"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
+
     class Config:
         case_sensitive = True
 

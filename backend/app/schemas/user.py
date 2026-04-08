@@ -1,16 +1,22 @@
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 
-# 1. Das Format, in dem das Frontend uns einen neuen Nutzer schickt
 class UserCreate(BaseModel):
-    email: EmailStr  # Validiert automatisch, ob ein '@' enthalten ist!
+    email: EmailStr
     name: str
     password: str
 
-# 2. Das Format, in dem wir den Nutzer ans Frontend ZURÜCK senden
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    password: Optional[str] = None
+
 class UserResponse(BaseModel):
-    email: str
+    email: EmailStr
     name: str
-    # Beachte: Kein Passwort hier!
 
     class Config:
-        from_attributes = True  # Erlaubt Pydantic, SQLAlchemy-Objekte zu lesen
+        from_attributes = True
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
