@@ -15,7 +15,9 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
     }
     
     // Wenn kein spezieller Content-Type gesetzt ist, gehen wir von JSON aus
-    if (!headers.has('Content-Type') && !(options.body instanceof URLSearchParams)) {
+    if (!headers.has('Content-Type') && 
+        !(options.body instanceof URLSearchParams) && 
+        !(options.body instanceof FormData)) {
         headers.set('Content-Type', 'application/json');
     }
 

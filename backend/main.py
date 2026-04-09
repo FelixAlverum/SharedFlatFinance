@@ -19,7 +19,7 @@ app.add_middleware(
 
 app.include_router(routes_users.router, prefix="/api/users", tags=["Users"])
 app.include_router(routes_transactions.router, prefix="/api/transactions", tags=["Transactions"])
-app.include_router(routes_parsing.router, prefix="/api/parsing", tags=["Bill Parsing"])
+app.include_router(routes_parsing.router, prefix="/api", tags=["Parsing"])
 
 @app.get("/")
 def read_root():
