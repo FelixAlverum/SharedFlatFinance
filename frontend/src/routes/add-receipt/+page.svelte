@@ -2,32 +2,8 @@
     import { apiFetch } from '$lib/api';
     import { onMount } from 'svelte';
     import SplitModal from '$lib/components/SplitModal.svelte';
+    import type { User, Item, ParsedData, Split } from '$lib/types';
 
-    // --- Types ---
-    interface User {
-        email: string;
-        name: string;
-    }
-
-    interface Split {
-        user_email: string;
-        amount: number;
-    }
-
-    interface Item {
-        name: string;
-        total_price: number;
-        quantity?: number;      
-        unit_price?: number;    
-        category?: string;      
-        splits: Split[];
-    }
-
-    interface ParsedData {
-        title: string;
-        payer_email: string;
-        items: Item[];
-    }
 
     // --- State ---
     let files: FileList | null = $state(null);

@@ -58,11 +58,17 @@ def create_transaction(
 # --- 2. ALLE KASSENBONS ABRUFEN (Für das Dashboard) ---
 @router.get("/", response_model=list[TransactionResponse])
 def get_transactions(
-    skip: int = 0, limit: int = 100, 
+    skip: int = 0,    # Offset (wieviele überspringen)
+    limit: int = 15,  # Wieviele Bons laden
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user) # Dashboard nur für Mitbewohner
+    current_user: User = Depends(get_current_user)
 ):
-    transactions = db.query(Transaction).order_by(Transaction.date.desc()).offset(skip).limit(limit).all()
+    # .offset() und .limit() sind die SQLAlchemy-Befehle für Paginierung
+    transactions = db.query(Transaction)\
+        .order_by(Transaction.date.desc())\
+        .offset(skip)\
+        .limit(limit)\
+        .all()
     return transactions
 
 # --- 3. EINEN EINZELNEN BON ABRUFEN ---
