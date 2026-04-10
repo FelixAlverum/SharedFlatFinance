@@ -3,12 +3,39 @@
     import { onMount } from 'svelte';
     import SplitModal from '$lib/components/SplitModal.svelte';
 
+    // --- Types ---
+    interface User {
+        email: string;
+        name: string;
+    }
+
+    interface Split {
+        user_email: string;
+        amount: number;
+    }
+
+    interface Item {
+        name: string;
+        total_price: number;
+        quantity?: number;      
+        unit_price?: number;    
+        category?: string;      
+        splits: Split[];
+    }
+
+    interface ParsedData {
+        title: string;
+        payer_email: string;
+        items: Item[];
+    }
+
+    // --- State ---
     let files: FileList | null = $state(null);
     let isLoading = $state(false);
     let errorMessage = $state('');
-    let parsedData: any = $state(null);
+    let parsedData: ParsedData | null = $state(null);
 
-    let users: any[] = $state([]);
+    let users: User[] = $state([]);
     let isModalOpen = $state(false);
     let activeItemIndex = $state(0);
     
@@ -17,12 +44,13 @@
     onMount(async () => {
         try {
             users = await apiFetch('/users/');
-        } catch (e) {
-            console.error("Fehler beim Laden der User", e);
+        } catch (e: any) {
+            console.error("Fehler beim Laden der User", e.message);
         }
     });
 
-    function recalculateEqualSplits(item: any, activeEmails: string[]) {
+    // --- Logic ---
+    function recalculateEqualSplits(item: Item, activeEmails: string[]) {
         if (activeEmails.length === 0) {
             item.splits = [];
             return;
@@ -37,19 +65,19 @@
         }
     }
 
-    function toggleUser(item: any, email: string) {
-        let activeEmails = item.splits.filter((s: any) => s.amount > 0).map((s: any) => s.user_email);
+    function toggleUser(item: Item, email: string) {
+        let activeEmails = item.splits.map(s => s.user_email);
         
         if (activeEmails.includes(email)) {
-            activeEmails = activeEmails.filter((e: string) => e !== email); 
+            activeEmails = activeEmails.filter(e => e !== email); 
         } else {
             activeEmails.push(email); 
         }
         recalculateEqualSplits(item, activeEmails);
     }
 
-    function toggleAll(item: any) {
-        const activeEmails = item.splits.filter((s: any) => s.amount > 0).map((s: any) => s.user_email);
+    function toggleAll(item: Item) {
+        const activeEmails = item.splits.map(s => s.user_email);
         
         if (activeEmails.length === users.length) {
             recalculateEqualSplits(item, []);
@@ -59,11 +87,10 @@
         }
     }
 
-    function isUserActive(item: any, email: string): boolean {
-        return item.splits.some((s: any) => s.user_email === email && s.amount > 0);
+    function isUserActive(item: Item, email: string): boolean {
+        return item.splits.some(s => s.user_email === email);
     }
 
-    // ANGEPASST: Braucht kein Event mehr, triggert direkt beim Auswählen der Datei
     async function handleUpload() {
         if (!files || files.length === 0) return;
 
@@ -82,7 +109,7 @@
             });
 
             const allEmails = users.map(u => u.email);
-            response.items = response.items.map((item: any) => {
+            response.items = response.items.map((item: Item) => {
                 item.splits = [];
                 if (item.name.toUpperCase().includes('PFAND') || item.name.toUpperCase().includes('LEERGUT')) {
                     recalculateEqualSplits(item, allEmails);
@@ -91,7 +118,7 @@
             });
             parsedData = response;
         } catch (error: any) {
-            errorMessage = error.message || 'Fehler beim Auslesen des Bons.';
+            errorMessage = error.message; 
         } finally {
             isLoading = false;
         }
@@ -102,49 +129,115 @@
         isModalOpen = true;
     }
 
-    async function saveTransaction() {
+    // UX Feature: Clear error state when returning from summary
+    function navigateBackToEdit() {
+        errorMessage = '';
+        showSummary = false;
+    }
+
+    async function saveTransaction() { 
+        if (!parsedData) return;
+
+        // Validierung
+        if (!parsedData.title || parsedData.title.trim() === '') {
+            errorMessage = 'Bitte gib einen Titel für den Einkauf ein.';
+            return;
+        }
+        if (!parsedData.payer_email) {
+            errorMessage = 'Bitte wähle aus, wer den Einkauf bezahlt hat.';
+            return;
+        }
+        if (incompleteItems.length > 0) {
+            errorMessage = 'Bitte teile zuerst alle Produkte zu 100% auf.';
+            return;
+        }
+
+        errorMessage = '';
+        isLoading = true;
+
+        // 2. JSON-Payload generieren
+        const strictPayload = {
+            title: parsedData.title.trim(),
+            date: new Date().toISOString(),
+            payer_email: parsedData.payer_email,
+            items: parsedData.items.map((item) => {
+    
+    // Deep Copy & Null-Beträge filtern
+    let finalSplits = item.splits ? item.splits.map(s => ({ 
+        ...s
+    })) : [];
+    
+    finalSplits = finalSplits.filter(s => Math.abs(s.amount) >= 0.01);
+
+    // Sicherheitsschicht für 0,00€ Artikel 
+    if (finalSplits.length === 0) {
+        finalSplits.push({
+            user_email: parsedData!.payer_email,
+            amount: 0.00
+        });
+    }
+
+    return {
+        name: item.name,
+        quantity: item.quantity || 1.0,
+        unit_price: item.unit_price !== undefined ? item.unit_price : item.total_price,
+        total_price: item.total_price,
+        category: item.category || 'Lebensmittel',
+        splits: finalSplits
+    };
+})
+        };
+
+        // 3. Request senden
         try {
             await apiFetch('/transactions/', {
                 method: 'POST',
-                body: JSON.stringify(parsedData)
+                body: JSON.stringify(strictPayload)
             });
             alert('🎉 Kassenbon erfolgreich in der Datenbank gespeichert!');
             parsedData = null; 
             files = null;
             showSummary = false;
         } catch (error: any) {
-            errorMessage = error.message;
+            errorMessage = error.message; 
+        } finally {
+            isLoading = false;
         }
     }
 
-    function getSplitSum(item: any): number {
+    function getSplitSum(item: Item): number {
         if (!item.splits) return 0;
-        return item.splits.reduce((sum: number, split: any) => sum + split.amount, 0);
+        return item.splits.reduce((sum, split) => sum + split.amount, 0);
     }
 
-    function checkIsComplete(item: any): boolean {
+    function checkIsComplete(item: Item): boolean {
         return Math.abs(item.total_price - getSplitSum(item)) < 0.01; 
     }
 
-    let incompleteItems = $derived(() => {
+    // --- Derived Data ---
+    let incompleteItems: Item[] = $derived.by(() => {
         if (!parsedData) return [];
-        return parsedData.items.filter((item: any) => !checkIsComplete(item));
+        return parsedData.items.filter(item => !checkIsComplete(item));
     });
 
-    let summaryTotals = $derived(() => {
+    let summaryTotals: { name: string, amount: number }[] = $derived.by(() => {
         if (!parsedData) return [];
         const totals: Record<string, { name: string, amount: number }> = {};
         users.forEach(u => totals[u.email] = { name: u.name, amount: 0 });
         
-        parsedData.items.forEach((item: any) => {
+        parsedData.items.forEach(item => {
             if (item.splits) {
-                item.splits.forEach((s: any) => {
+                item.splits.forEach(s => {
                     if (totals[s.user_email]) totals[s.user_email].amount += s.amount;
                 });
             }
         });
         return Object.values(totals);
     });
+
+    let totalItemsCount = $derived(parsedData ? parsedData.items.length : 0);
+    let completeItemsCount = $derived(totalItemsCount - incompleteItems.length);
+    let globalProgress = $derived(totalItemsCount === 0 ? 0 : (completeItemsCount / totalItemsCount) * 100);
 
 </script>
 
@@ -183,6 +276,22 @@
 
         {#if parsedData}
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                
+                <div class="p-6 border-b border-gray-200 bg-white">
+                    <div class="flex justify-between items-end mb-2">
+                        <span class="text-sm font-medium text-gray-600">Fortschritt der Aufteilung</span>
+                        <span class="text-sm font-bold {completeItemsCount === totalItemsCount ? 'text-green-600' : 'text-blue-600'}">
+                            {completeItemsCount} von {totalItemsCount} Artikeln aufgeteilt
+                        </span>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                        <div 
+                            class="h-3 transition-all duration-500 ease-out {completeItemsCount === totalItemsCount ? 'bg-green-500' : 'bg-blue-500'}" 
+                            style="width: {globalProgress}%">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="p-6 border-b border-gray-200 bg-gray-50 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label for="title" class="block text-sm font-medium text-gray-700">Titel des Einkaufs</label>
@@ -198,30 +307,26 @@
                     </div>
                 </div>
 
-                <div class="hidden md:block overflow-x-auto">
+                <div class="hidden lg:block overflow-x-auto">
                     <table class="w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr class="bg-gray-100 text-gray-600 text-xs uppercase tracking-wider">
                                 <th class="p-3 font-semibold w-1/4">Produkt</th>
                                 <th class="p-3 font-semibold w-12">Gesamt</th>
-                                
                                 {#each users as user}
                                     <th class="p-3 font-semibold w-20 text-center" title={user.name}>{user.name.substring(0, 6)}</th>
                                 {/each}
-                                
                                 <th class="p-3 font-semibold w-20 text-center">Alle</th>
                                 <th class="p-3 font-semibold w-12 text-center">Edit</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
                             {#each parsedData.items as item, index}
-                                <tr class="hover:bg-gray-50 transition">
-                                    <td class="p-2"><input type="text" bind:value={item.name} class="w-full text-sm border-transparent focus:border-blue-500 rounded p-1" /></td>
-                                    
-                                    <td class="p-2 relative">
-                                        <div class="font-semibold text-gray-800 text-sm mb-1">{item.total_price.toFixed(2)}€</div>
+                                <tr class="hover:bg-gray-50 transition {checkIsComplete(item) ? '' : 'bg-yellow-50/30'}">
+                                    <td class="p-2"><input type="text" bind:value={item.name} class="w-full text-sm border-transparent focus:border-blue-500 rounded p-1 {checkIsComplete(item) ? 'bg-transparent' : 'bg-yellow-50/50'}" /></td>
+                                    <td class="p-2 align-middle">
+                                        <div class="font-bold text-gray-800 text-sm">{item.total_price.toFixed(2)}€</div>
                                     </td>
-
                                     {#each users as user}
                                         <td class="p-2 text-center">
                                             <button 
@@ -233,11 +338,9 @@
                                             </button>
                                         </td>
                                     {/each}
-
                                     <td class="p-2 text-center">
                                         <button onclick={() => toggleAll(item)} class="w-full px-2 py-1.5 text-xs font-bold rounded transition border bg-white text-gray-600 border-gray-300 hover:border-blue-300 hover:bg-blue-50">Alle</button>
                                     </td>
-
                                     <td class="p-2 text-center">
                                         <button onclick={() => openSplitModal(index)} class="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded">✎</button>
                                     </td>
@@ -247,12 +350,12 @@
                     </table>
                 </div>
 
-                <div class="block md:hidden divide-y divide-gray-200">
+                <div class="block lg:hidden divide-y divide-gray-200">
                     {#each parsedData.items as item, index}
-                        <div class="p-4 bg-white">
-                            <div class="flex gap-2 items-center mb-2">
-                                <input type="text" bind:value={item.name} class="flex-1 text-sm font-semibold border-transparent focus:border-blue-500 rounded p-1 -ml-1" />
-                                <span class="font-bold text-gray-800 whitespace-nowrap">{item.total_price.toFixed(2)}€</span>
+                        <div class="p-4 bg-white {checkIsComplete(item) ? '' : 'bg-yellow-50/30'}">
+                            <div class="flex gap-2 items-center justify-between mb-3 w-full">
+                                <input type="text" bind:value={item.name} class="font-semibold text-sm border-transparent focus:border-blue-500 rounded p-1 -ml-1 flex-1 {checkIsComplete(item) ? 'bg-transparent' : 'bg-yellow-50/50'}" />
+                                <span class="font-bold text-gray-800 whitespace-nowrap ml-2">{item.total_price.toFixed(2)}€</span>
                             </div>
 
                             <div class="flex flex-wrap items-center gap-2">
@@ -285,12 +388,12 @@
             
             <div class="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-100">
                 <p class="text-sm text-blue-800 mb-2">Bezahlt von:</p>
-                <p class="font-bold text-lg">{users.find(u => u.email === parsedData.payer_email)?.name}</p>
+                <p class="font-bold text-lg">{users.find(u => u.email === parsedData?.payer_email)?.name}</p>
             </div>
 
             <h3 class="font-bold text-gray-700 mb-4 border-b pb-2">Wer zahlt wie viel?</h3>
             <ul class="space-y-3 mb-8">
-                {#each summaryTotals() as total}
+                {#each summaryTotals as total}
                     <li class="flex justify-between items-center text-lg">
                         <span>{total.name}</span>
                         <span class="font-bold {total.amount > 0 ? 'text-gray-800' : 'text-gray-400'}">{total.amount.toFixed(2)} €</span>
@@ -298,27 +401,46 @@
                 {/each}
             </ul>
 
-            {#if incompleteItems().length > 0}
-                <div class="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-8">
-                    <h3 class="font-bold text-yellow-800 mb-2 flex items-center gap-2">⚠️ Hinweis: Unvollständige Aufteilung</h3>
-                    <p class="text-sm text-yellow-700 mb-3">Folgende Produkte sind noch nicht zu 100% aufgeteilt. Du kannst trotzdem speichern und sie später anpassen:</p>
-                    <ul class="list-disc list-inside text-sm text-yellow-800 space-y-1">
-                        {#each incompleteItems() as item}
+            {#if incompleteItems.length > 0}
+                <div class="bg-red-50 border border-red-200 p-4 rounded-lg mb-8">
+                    <h3 class="font-bold text-red-800 mb-2 flex items-center gap-2">⚠️ Aktion erforderlich</h3>
+                    <p class="text-sm text-red-700 mb-3">Bitte teile zuerst folgende Produkte zu 100% auf, bevor du speichern kannst:</p>
+                    <ul class="list-disc list-inside text-sm text-red-800 space-y-1">
+                        {#each incompleteItems as item}
                             <li>{item.name} <span class="font-semibold">({item.total_price.toFixed(2)}€)</span></li>
                         {/each}
                     </ul>
                 </div>
             {/if}
 
+            {#if errorMessage}
+                <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm font-bold flex items-center gap-2 shadow-sm">
+                    <span>❌</span>
+                    <span>{errorMessage}</span>
+                </div>
+            {/if}
+
             <div class="flex flex-col md:flex-row gap-4 justify-between border-t pt-6">
-                <button onclick={() => showSummary = false} class="w-full md:w-auto px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-lg transition">
+                <button onclick={navigateBackToEdit} class="w-full md:w-auto px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-lg transition">
                     ⬅ Zurück
                 </button>
+                
                 <button 
                     onclick={saveTransaction} 
-                    class="w-full md:w-auto px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition shadow-md"
+                    disabled={isLoading || incompleteItems.length > 0}
+                    class="w-full md:w-auto px-8 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold rounded-lg transition shadow-md flex justify-center items-center gap-2"
                 >
-                    ✅ Speichern
+                    {#if isLoading}
+                        <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Speichert...
+                    {:else if incompleteItems.length > 0}
+                        🔒 Speichern gesperrt
+                    {:else}
+                        ✅ Speichern
+                    {/if}
                 </button>
             </div>
         </div>

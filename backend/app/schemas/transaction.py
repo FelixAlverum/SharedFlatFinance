@@ -1,53 +1,62 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 from typing import List, Optional
 from datetime import datetime
 
-# --- INPUT SCHEMAS (Was das Frontend uns schickt) ---
+# ==========================================
+# 1. SPLIT SCHEMAS
+# ==========================================
+class ItemSplitBase(BaseModel):
+    user_email: EmailStr 
+    amount: float = Field(...)
 
-class ItemSplitCreate(BaseModel):
-    user_email: str
-    amount: float
+class ItemSplitCreate(ItemSplitBase):
+    pass
 
-class ItemCreate(BaseModel):
+class ItemSplitResponse(ItemSplitBase):
+    id: int
+    
+    class Config:
+        from_attributes = True # Erlaubt Pydantic, SQLAlchemy-Modelle zu lesen (früher: orm_mode)
+
+
+# ==========================================
+# 2. ITEM SCHEMAS
+# ==========================================
+class ItemBase(BaseModel):
     name: str
     quantity: float = 1.0
     unit_price: float
     total_price: float
     category: Optional[str] = None
-    splits: List[ItemSplitCreate] # Eine Liste der Aufteilungen für DIESES Produkt
 
-class TransactionCreate(BaseModel):
-    title: str
-    date: Optional[datetime] = None # Wenn nichts kommt, nimmt die DB das aktuelle Datum
-    payer_email: str
-    items: List[ItemCreate] # Eine Liste aller Produkte auf dem Bon
+class ItemCreate(ItemBase):
+    splits: List[ItemSplitCreate] # Nutzt das Create-Schema der Splits
 
-
-# --- OUTPUT SCHEMAS (Was wir ans Frontend zurücksenden) ---
-
-class ItemSplitResponse(BaseModel):
+class ItemResponse(ItemBase):
     id: int
-    user_email: str
-    amount: float
+    splits: List[ItemSplitResponse] # Nutzt das Response-Schema der Splits
+    
     class Config:
         from_attributes = True
 
-class ItemResponse(BaseModel):
-    id: int
-    name: str
-    quantity: float
-    unit_price: float
-    total_price: float
-    category: Optional[str]
-    splits: List[ItemSplitResponse]
-    class Config:
-        from_attributes = True
 
-class TransactionResponse(BaseModel):
-    id: int
+# ==========================================
+# 3. TRANSACTION SCHEMAS
+# ==========================================
+class TransactionBase(BaseModel):
     title: str
-    date: datetime
-    payer_email: str
+    date: Optional[datetime] = None
+    payer_email: EmailStr
+
+class TransactionCreate(TransactionBase):
+    items: List[ItemCreate] # Liste der Items beim Erstellen
+
+class TransactionResponse(TransactionBase):
+    id: int
+    # Wir überschreiben date hier explizit. Beim Create ist es Optional, 
+    # aber in der Response (aus der DB) wissen wir, dass es immer gesetzt ist.
+    date: datetime 
     items: List[ItemResponse]
+    
     class Config:
         from_attributes = True

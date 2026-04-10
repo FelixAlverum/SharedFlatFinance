@@ -23,7 +23,7 @@ def create_transaction(
         payer_email=tx_in.payer_email
     )
     db.add(db_tx)
-    db.flush() # Wir flushen, um die ID des neuen Bons zu bekommen, ohne schon fest zu speichern (commit)
+    db.flush()
 
     # 2. Durch alle Items iterieren
     for item_in in tx_in.items:
@@ -40,7 +40,6 @@ def create_transaction(
 
         # 3. Durch alle Splits dieses Items iterieren
         for split_in in item_in.splits:
-            # Sicherheits-Check: Existiert der User, dem wir Schulden aufschreiben?
             user_exists = db.query(User).filter(User.email == split_in.user_email).first()
             if not user_exists:
                 raise HTTPException(status_code=400, detail=f"User {split_in.user_email} not found")
@@ -52,7 +51,6 @@ def create_transaction(
             )
             db.add(db_split)
 
-    # 4. Alles zusammen fest in die Datenbank schreiben!
     db.commit()
     db.refresh(db_tx)
     return db_tx
