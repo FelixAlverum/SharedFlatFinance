@@ -35,7 +35,6 @@
         }
     });
 
-    // --- Logic (Wiederverwendung deiner Logik) ---
     let incompleteItems: Item[] = $derived(
     transactionData?.items.filter((item: Item) => !checkIsComplete(item)) || []
 );
