@@ -17,7 +17,6 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # ECHTES Hashing!
     hashed_pwd = get_password_hash(user.password)
     new_user = User(email=user.email, name=user.name, hashed_password=hashed_pwd)
     

@@ -37,7 +37,6 @@
         }
     }
 
-    // FIX: onMount selbst darf nicht async sein, wenn ein Cleanup-Return genutzt wird
     onMount(() => {
         // Interne async Funktion für den Initial-Load
         const init = async () => {
@@ -75,17 +74,29 @@
     });
 
     async function deleteTransaction(id: string) {
-        if (!confirm('Wirklich löschen?')) return;
+        // 1. Sicherheitsabfrage
+        if (!confirm('Möchtest du diesen Kassenbon wirklich löschen?')) return;
+
         try {
+            // 2. API-Aufruf (apiFetch erkennt 204 No Content automatisch)
             await apiFetch(`/transactions/${id}`, { method: 'DELETE' });
-            const [newBalancesRes] = await Promise.all([
-                apiFetch('/balances/'),
-                fetchTransactions(true) 
-            ]);
-            // FIX: Typen für a und b hinzugefügt
-            balances = (newBalancesRes as Balance[]).sort((a: Balance, b: Balance) => b.amount - a.amount);
+
+            // 3. UI-Update: Transaktion sofort aus der lokalen Liste entfernen (Optimistic)
+            transactions = transactions.filter(t => t.id !== id);
+
+            // 4. Bilanzen im Hintergrund neu laden, da sich die Schulden geändert haben
+            const newBalancesRes = await apiFetch('/balances/');
+            balances = (newBalancesRes as Balance[]).sort((a, b) => b.amount - a.amount);
+            
+            // Falls die Liste nun zu leer ist, könnten wir fetchTransactions(true) 
+            // aufrufen, um wieder auf 15 Items aufzufüllen.
+            if (transactions.length < 5 && hasMore) {
+                await fetchTransactions();
+            }
+
         } catch (error: any) {
-            alert(error.message);
+            // Falls das Backend den Fehler ablehnt, Fehlermeldung anzeigen
+            alert(`Fehler beim Löschen: ${error.message}`);
         }
     }
 

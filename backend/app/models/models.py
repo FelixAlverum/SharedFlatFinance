@@ -29,7 +29,7 @@ class Transaction(Base):
     payer_email = Column(String, ForeignKey("users.email"))
 
     payer = relationship("User", back_populates="paid_transactions")
-    items = relationship("Item", back_populates="transaction", cascade="all, delete-orphan")
+    items = relationship("Item", back_populates="transaction", cascade="all, delete-orphan", passive_deletes=True)
 
 
 class Item(Base):
@@ -37,29 +37,28 @@ class Item(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    
     quantity = Column(Float, default=1.0, nullable=False) 
-    unit_price = Column(Float, nullable=False)             # Der Einzelpreis
-    total_price = Column(Float, nullable=False)            # Das, was am Ende auf dem Bon für diese Zeile steht
-    
+    unit_price = Column(Float, nullable=False)
+    total_price = Column(Float, nullable=False)
     category = Column(String)
+    transaction_id = Column(Integer, ForeignKey("transactions.id", ondelete="CASCADE"))
     
-    # Zu welchem Bon gehört dieses Item?
-    transaction_id = Column(Integer, ForeignKey("transactions.id"))
+    splits = relationship(
+        "ItemSplit", 
+        back_populates="item", 
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
 
     transaction = relationship("Transaction", back_populates="items")
-    splits = relationship("ItemSplit", back_populates="item", cascade="all, delete-orphan")
 
 
 class ItemSplit(Base):
     __tablename__ = "item_splits"
     
     id = Column(Integer, primary_key=True, index=True)
-    amount = Column(Float, nullable=False) # Der genaue Schulden-Betrag für diese Person
-    
-    # Welches Produkt wird geteilt?
-    item_id = Column(Integer, ForeignKey("items.id"))
-    # Wer muss dafür zahlen?
+    amount = Column(Float, nullable=False)
+    item_id = Column(Integer, ForeignKey("items.id", ondelete="CASCADE"))
     user_email = Column(String, ForeignKey("users.email"))
 
     item = relationship("Item", back_populates="splits")

@@ -1,20 +1,34 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy import create_engine, event, Engine
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from typing import Generator
 from app.core.config import settings
 
-# The connect_args are specific to SQLite to allow multiple threads to access it
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
+# --- ENGINE SETUP ---
 engine = create_engine(
     settings.SQLALCHEMY_DATABASE_URI, 
-    connect_args={"check_same_thread": False}
+    connect_args={"check_same_thread": False} if "sqlite" in settings.SQLALCHEMY_DATABASE_URI else {}
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# This is the base class all our future database models will inherit from
-Base = declarative_base()
+class Base(DeclarativeBase):
+    """
+    Die neue Basisklasse für alle Modelle. 
+    Ersetzt das veraltete 'declarative_base()'.
+    """
+    pass
 
-# A helper function to yield database sessions to our API routes
-def get_db():
+def get_db() -> Generator:
+    """
+    Helper für FastAPI 'Depends'. 
+    Stellt sicher, dass die Session nach dem Request geschlossen wird.
+    """
     db = SessionLocal()
     try:
         yield db
