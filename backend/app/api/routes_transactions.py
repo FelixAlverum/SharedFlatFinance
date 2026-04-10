@@ -109,12 +109,8 @@ def update_transaction(
         db_tx.title = tx_in.title
         db_tx.date = tx_in.date or db_tx.date
         db_tx.payer_email = tx_in.payer_email.lower() # Case-Insensitivity sicherstellen
-
-        # 1. Finde Item-IDs zu dieser Transaktion gehören
-        item_id_subquery = db.query(Item.id).filter(Item.transaction_id == tx_id).subquery()
-        # 2. Splits löschen
-        db.query(ItemSplit).filter(ItemSplit.item_id.in_(item_id_subquery)).delete(synchronize_session=False)
-        # Items löschen
+        
+        # Items und Splits löschen
         db.query(Item).filter(Item.transaction_id == tx_id).delete(synchronize_session=False)
         db.flush()
 
@@ -146,7 +142,6 @@ def update_transaction(
                 )
                 db.add(new_split)
 
-        # 6. Alles atomar speichern
         db.commit()
         db.refresh(db_tx)
         return db_tx
@@ -166,37 +161,13 @@ def delete_transaction(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    Löscht eine Transaktion und alle damit verbundenen Items und Splits.
-    Gibt 204 No Content zurück, wenn erfolgreich.
-    """
-    
-    # 1. Transaktion suchen
     db_tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
-    
-    # 2. Fehler werfen, falls nicht gefunden
     if not db_tx:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Transaktion {tx_id} existiert nicht."
-        )
-
+        raise HTTPException(status_code=404, detail="Transaktion existiert nicht.")
     try:
-        db.delete(db_tx)
-        # 1. Finde Item-IDs zu dieser Transaktion gehören
-        item_id_subquery = db.query(Item.id).filter(Item.transaction_id == tx_id).subquery()
-        # 2. Splits löschen
-        db.query(ItemSplit).filter(ItemSplit.item_id.in_(item_id_subquery)).delete(synchronize_session=False)
-        # Items löschen
-        db.query(Item).filter(Item.transaction_id == tx_id).delete(synchronize_session=False)
-        # Transaction löschen
-        db.query(Item).filter(Item.transaction_id == tx_id).delete(synchronize_session=False)
+        db.delete(db_tx) 
         db.commit()
         return Response(status_code=status.HTTP_204_NO_CONTENT)
-
     except Exception as e:
         db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Fehler beim Löschen der Transaktion: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=str(e))
