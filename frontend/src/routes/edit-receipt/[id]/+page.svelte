@@ -4,7 +4,9 @@
     import { apiFetch } from '$lib/api';
     import type { User, Transaction, Item } from '$lib/types';
     import SplitModal from '$lib/components/SplitModal.svelte';
-
+    import ReceiptItemList from '$lib/components/ReceiptItemList.svelte';
+    import {checkIsComplete} from '$lib/receipt-logic';
+    
     // --- State ---
     const txId = page.params.id;
     let isLoading = $state(true);
@@ -16,7 +18,6 @@
     
     let isModalOpen = $state(false);
     let activeItemIndex = $state(0);
-    let showSummary = $state(false);
 
     onMount(async () => {
         try {
@@ -35,14 +36,6 @@
     });
 
     // --- Logic (Wiederverwendung deiner Logik) ---
-    function getSplitSum(item: Item) {
-        return item.splits.reduce((sum, split) => sum + split.amount, 0);
-    }
-
-    function checkIsComplete(item: Item) {
-        return Math.abs(item.total_price - getSplitSum(item)) < 0.01;
-    }
-
     let incompleteItems: Item[] = $derived(
     transactionData?.items.filter((item: Item) => !checkIsComplete(item)) || []
 );
@@ -104,19 +97,13 @@
                 </div>
             </div>
 
-            <table class="w-full text-left border-collapse">
-                <tbody class="divide-y divide-gray-200">
-                    {#each transactionData.items as item, index}
-                        <tr class="hover:bg-gray-50 {checkIsComplete(item) ? '' : 'bg-yellow-50'}">
-                            <td class="p-4 font-medium text-sm">{item.name}</td>
-                            <td class="p-4 text-sm font-bold">{item.total_price.toFixed(2)}€</td>
-                            <td class="p-4 text-right">
-                                <button onclick={() => openSplitModal(index)} class="text-blue-600 hover:underline">Aufteilung ändern</button>
-                            </td>
-                        </tr>
-                    {/each}
-                </tbody>
-            </table>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <ReceiptItemList 
+                bind:items={transactionData.items} 
+                {users} 
+                {openSplitModal} 
+            />
+            </div>
 
             <div class="p-6 bg-gray-50 border-t flex justify-between items-center">
                 <p class="text-sm text-gray-600">
@@ -136,8 +123,7 @@
             </div>
         </div>
 
-        {#if transactionData}
-            <SplitModal bind:isOpen={isModalOpen} bind:item={transactionData.items[activeItemIndex]} {users} />
-        {/if}
+        <SplitModal bind:isOpen={isModalOpen} bind:item={transactionData.items[activeItemIndex]} {users} />
+        
     {/if}
 </main>
