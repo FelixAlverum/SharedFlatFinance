@@ -1,17 +1,16 @@
 <script lang="ts">
     import { apiFetch } from '$lib/api';
     import { token, currentUser } from '$lib/stores';
+    import { goto } from '$app/navigation'; // <-- NEU: Import für die Navigation
 
-    // NEU in Svelte 5: $state() macht die Variablen reaktiv!
     let isLogin = $state(true);
     let email = $state('');
     let name = $state('');
     let password = $state('');
     let errorMessage = $state('');
 
-    // Wir übergeben das Event jetzt direkt in die Funktion
     async function handleSubmit(event: Event) {
-        event.preventDefault(); // Verhindert, dass die Seite beim Klicken auf Submit neu lädt
+        event.preventDefault(); 
         
         errorMessage = '';
         try {
@@ -35,12 +34,17 @@
                 });
                 
                 isLogin = true;
+                // Nach Registrierung direkt einloggen
                 await handleSubmit(event);
                 return;
             }
 
+            // User-Daten laden
             const userData = await apiFetch('/users/me');
             $currentUser = userData;
+
+            // --- WEITERLEITUNG ---
+            goto('/add-receipt'); // <-- Nach Erfolg zur Seite springen
 
         } catch (error: any) {
             errorMessage = error.message;
@@ -50,6 +54,8 @@
     function logout() {
         $token = null;
         $currentUser = null;
+        // Optional: Nach Logout zurück zum Login/Home
+        goto('/'); 
     }
 </script>
 
