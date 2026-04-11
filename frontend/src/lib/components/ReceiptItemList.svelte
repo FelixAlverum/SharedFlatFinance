@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { Item, User } from '$lib/types';
-    import * as logic from '$lib/receipt-logic';
+    import * as logic from '$lib/receipt-logic.svelte';
 
     interface Props {
         items: Item[];
@@ -23,12 +23,10 @@
 
     function handleToggleUser(item: Item, email: string) {
         logic.toggleUser(item, email, items);
-        items = items; 
     }
 
     function handleToggleAll(item: Item) {
         logic.toggleAll(item, users, items);
-        items = items;
     }
 </script>
 

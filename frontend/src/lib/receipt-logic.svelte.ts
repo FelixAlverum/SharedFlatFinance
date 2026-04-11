@@ -57,7 +57,6 @@ export function applyGlobalFairSplits(items: Item[]) {
     });
 }
 
-// --- Array Mutationen ---
 export function toggleUser(item: Item, email: string, allItems: Item[]) {
     const index = item.splits.findIndex(s => s.user_email === email);
     if (index !== -1) {
@@ -65,7 +64,6 @@ export function toggleUser(item: Item, email: string, allItems: Item[]) {
     } else {
         item.splits.push({ user_email: email, amount: 0 });
     }
-    // Nach jeder Änderung alles fair glattziehen
     applyGlobalFairSplits(allItems);
 }
 
@@ -75,6 +73,5 @@ export function toggleAll(item: Item, users: User[], allItems: Item[]) {
     } else {
         item.splits = users.map(u => ({ user_email: u.email, amount: 0 }));
     }
-    // Nach jeder Änderung alles fair glattziehen
     applyGlobalFairSplits(allItems);
 }

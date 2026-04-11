@@ -5,7 +5,7 @@
     import ReceiptItemList from '$lib/components/ReceiptItemList.svelte';
     
     // Logik-Importe
-    import * as receiptLogic from '$lib/receipt-logic';
+    import * as receiptLogic from '$lib/receipt-logic.svelte';
 
     // --- State ---
     let files: FileList | null = $state(null);
@@ -17,7 +17,6 @@
     let activeItemIndex = $state(0);
     let showSummary = $state(false);
 
-    // --- Initialisierung ---
     import { onMount } from 'svelte';
     onMount(async () => {
         users = await apiFetch('/users/');
@@ -31,9 +30,7 @@
             const formData = new FormData();
             formData.append('file', files[0]);
             const response = await apiFetch('/upload-receipt', { method: 'POST', body: formData });
-            
-            // Initialisierung der Pfand-Automatik
-            const allEmails = users.map(u => u.email);
+
             response.items.forEach((item: Item) => {
                 if (item.name.toUpperCase().includes('PFAND')) {
                     item.splits = users.map(u => ({ user_email: u.email, amount: 0 }));

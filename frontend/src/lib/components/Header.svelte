@@ -55,11 +55,10 @@
                     <button 
                         onclick={logout}
                         class="text-sm font-bold text-red-500 hover:text-red-700 transition-colors"
+                        aria-label="Ausloggen"
                     >
                         Logout
                     </button>
-                {:else}
-                    <a href="/" class="text-sm font-medium text-gray-500 hover:text-blue-600">Login</a>
                 {/if}
             </div>
 
@@ -101,6 +100,7 @@
                     <button 
                         onclick={logout}
                         class="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50"
+                        aria-label="Ausloggen"
                     >
                         Logout
                     </button>

@@ -5,7 +5,7 @@
     import type { User, Transaction, Item } from '$lib/types';
     import SplitModal from '$lib/components/SplitModal.svelte';
     import ReceiptItemList from '$lib/components/ReceiptItemList.svelte';
-    import {checkIsComplete} from '$lib/receipt-logic';
+    import {checkIsComplete} from '$lib/receipt-logic.svelte';
     
     // --- State ---
     const txId = page.params.id;
@@ -36,7 +36,7 @@
     });
 
     let incompleteItems: Item[] = $derived(
-    transactionData?.items.filter((item: Item) => !checkIsComplete(item)) || []
+    transactionData!.items.filter((item: Item) => !checkIsComplete(item)) || []
 );
 
     async function updateTransaction() {
