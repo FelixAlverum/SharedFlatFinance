@@ -1,50 +1,80 @@
-import type { User, Item, ParsedData, Split } from '$lib/types';
+import type { Item, User } from './types';
 
-export function toggleUser(item: Item, email: string) {
-        let activeEmails = item.splits.map(s => s.user_email);
-        
-        if (activeEmails.includes(email)) {
-            activeEmails = activeEmails.filter(e => e !== email); 
-        } else {
-            activeEmails.push(email); 
-        }
-        recalculateEqualSplits(item, activeEmails);
-    }
-
-export function toggleAll(item: Item, users:User[]) {
-        const activeEmails = item.splits.map(s => s.user_email);
-        
-        if (activeEmails.length === users.length) {
-            recalculateEqualSplits(item, []);
-        } else {
-            const allEmails = users.map(u => u.email);
-            recalculateEqualSplits(item, allEmails);
-        }
-    }
-
-export function isUserActive(item: Item, email: string): boolean {
-        return item.splits.some(s => s.user_email === email);
-    }
+// --- Kleine Helper ---
+export function getSplitSum(item: Item): number {
+    if (!item.splits) return 0;
+    return item.splits.reduce((sum, split) => sum + split.amount, 0);
+}
 
 export function checkIsComplete(item: Item): boolean {
-        return Math.abs(item.total_price - getSplitSum(item)) < 0.01; 
-    }
+    return Math.abs(item.total_price - getSplitSum(item)) < 0.01;
+}
 
-export function getSplitSum(item: Item) {
-        return item.splits.reduce((sum, split) => sum + split.amount, 0);
-    }
+export function isUserActive(item: Item, email: string): boolean {
+    return item.splits.some(s => s.user_email === email);
+}
 
-export function recalculateEqualSplits(item: Item, activeEmails: string[]) {
-        if (activeEmails.length === 0) {
-            item.splits = [];
-            return;
-        }
-        const amount = Math.round((item.total_price / activeEmails.length) * 100) / 100;
-        item.splits = activeEmails.map(email => ({ user_email: email, amount }));
+export function applyGlobalFairSplits(items: Item[]) {
+    const balanceTracker: Record<string, number> = {};
+
+    items.forEach((item) => {
+        if (!item.splits || item.splits.length === 0) return;
+
+        const totalCents = Math.round(item.total_price * 100);
+        const numParticipants = item.splits.length;
         
-        const sum = amount * activeEmails.length;
-        const diff = Math.round((item.total_price - sum) * 100) / 100;
-        if (diff !== 0) {
-            item.splits[0].amount = Math.round((item.splits[0].amount + diff) * 100) / 100;
-        }
+        const shareCents = Math.trunc(totalCents / numParticipants);
+        const remainderCents = totalCents % numParticipants;
+        const absRemainder = Math.abs(remainderCents);
+        const centSign = Math.sign(totalCents);
+
+        const exactShare = totalCents / numParticipants; 
+        item.splits.forEach(s => {
+            if (balanceTracker[s.user_email] === undefined) balanceTracker[s.user_email] = 0;
+            balanceTracker[s.user_email] += exactShare;
+        });
+
+        const shuffledEmails = item.splits.map(s => s.user_email)
+            .sort(() => Math.random() - 0.5);
+
+        const sortedParticipants = shuffledEmails.sort((a, b) => {
+            if (centSign >= 0) {
+                return balanceTracker[b] - balanceTracker[a];
+            } else {
+                return balanceTracker[a] - balanceTracker[b];
+            }
+        });
+
+        item.splits.forEach((split) => {
+            let extraCent = 0;
+            if (sortedParticipants.indexOf(split.user_email) < absRemainder) {
+                extraCent = centSign;
+            }
+            const finalAmountCents = shareCents + extraCent;
+            split.amount = finalAmountCents / 100;
+            balanceTracker[split.user_email] -= finalAmountCents;
+        });
+    });
+}
+
+// --- Array Mutationen ---
+export function toggleUser(item: Item, email: string, allItems: Item[]) {
+    const index = item.splits.findIndex(s => s.user_email === email);
+    if (index !== -1) {
+        item.splits.splice(index, 1);
+    } else {
+        item.splits.push({ user_email: email, amount: 0 });
     }
+    // Nach jeder Änderung alles fair glattziehen
+    applyGlobalFairSplits(allItems);
+}
+
+export function toggleAll(item: Item, users: User[], allItems: Item[]) {
+    if (item.splits.length === users.length) {
+        item.splits = [];
+    } else {
+        item.splits = users.map(u => ({ user_email: u.email, amount: 0 }));
+    }
+    // Nach jeder Änderung alles fair glattziehen
+    applyGlobalFairSplits(allItems);
+}

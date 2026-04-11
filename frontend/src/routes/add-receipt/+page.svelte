@@ -1,65 +1,73 @@
 <script lang="ts">
     import { apiFetch } from '$lib/api';
-    import { onMount } from 'svelte';
-    import SplitModal from '$lib/components/SplitModal.svelte';
     import type { User, Item, ParsedData } from '$lib/types';
+    import SplitModal from '$lib/components/SplitModal.svelte';
     import ReceiptItemList from '$lib/components/ReceiptItemList.svelte';
-    import {recalculateEqualSplits, checkIsComplete} from '$lib/receipt-logic';
-
+    
+    // Logik-Importe
+    import * as receiptLogic from '$lib/receipt-logic';
 
     // --- State ---
     let files: FileList | null = $state(null);
     let isLoading = $state(false);
     let errorMessage = $state('');
     let parsedData: ParsedData | null = $state(null);
-
     let users: User[] = $state([]);
     let isModalOpen = $state(false);
     let activeItemIndex = $state(0);
-    
-    let showSummary = $state(false); 
+    let showSummary = $state(false);
 
+    // --- Initialisierung ---
+    import { onMount } from 'svelte';
     onMount(async () => {
-        try {
-            users = await apiFetch('/users/');
-        } catch (e: any) {
-            console.error("Fehler beim Laden der User", e.message);
-        }
+        users = await apiFetch('/users/');
     });
 
-    // --- Logic ---
-
     async function handleUpload() {
-        if (!files || files.length === 0) return;
-
+        if (!files) return;
         isLoading = true;
         errorMessage = '';
-        parsedData = null;
-        showSummary = false;
-
         try {
             const formData = new FormData();
             formData.append('file', files[0]);
-
-            const response = await apiFetch('/upload-receipt', {
-                method: 'POST',
-                body: formData
-            });
-
+            const response = await apiFetch('/upload-receipt', { method: 'POST', body: formData });
+            
+            // Initialisierung der Pfand-Automatik
             const allEmails = users.map(u => u.email);
-            response.items = response.items.map((item: Item) => {
-                item.splits = [];
-                if (item.name.toUpperCase().includes('PFAND') || item.name.toUpperCase().includes('LEERGUT')) {
-                    recalculateEqualSplits(item, allEmails);
+            response.items.forEach((item: Item) => {
+                if (item.name.toUpperCase().includes('PFAND')) {
+                    item.splits = users.map(u => ({ user_email: u.email, amount: 0 }));
+                } else {
+                    item.splits = [];
                 }
-                return item;
             });
+            receiptLogic.applyGlobalFairSplits(response.items);
             parsedData = response;
-        } catch (error: any) {
-            errorMessage = error.message; 
-        } finally {
-            isLoading = false;
-        }
+        } catch (e: any) {
+            errorMessage = e.message;
+        } finally { isLoading = false; }
+    }
+
+    async function saveTransaction() {
+        if (!parsedData || incompleteItems.length > 0) return;
+        isLoading = true;
+        try {
+            await apiFetch('/transactions/', {
+                method: 'POST',
+                body: JSON.stringify({
+                    ...parsedData,
+                    date: new Date().toISOString()
+                })
+            });
+            window.location.href = '/dashboard';
+        } catch (e: any) {
+            errorMessage = e.message;
+        } finally { isLoading = false; }
+    }
+    
+    function navigateBackToEdit() {
+        errorMessage = '';
+        showSummary = false;
     }
 
     function openSplitModal(index: number) {
@@ -67,93 +75,7 @@
         isModalOpen = true;
     }
 
-    // UX Feature: Clear error state when returning from summary
-    function navigateBackToEdit() {
-        errorMessage = '';
-        showSummary = false;
-    }
-
-    async function saveTransaction() { 
-        if (!parsedData) return;
-
-        // Validierung
-        if (!parsedData.title || parsedData.title.trim() === '') {
-            errorMessage = 'Bitte gib einen Titel für den Einkauf ein.';
-            return;
-        }
-        if (!parsedData.payer_email) {
-            errorMessage = 'Bitte wähle aus, wer den Einkauf bezahlt hat.';
-            return;
-        }
-        if (incompleteItems.length > 0) {
-            errorMessage = 'Bitte teile zuerst alle Produkte zu 100% auf.';
-            return;
-        }
-
-        errorMessage = '';
-        isLoading = true;
-
-        // 2. JSON-Payload generieren
-        const strictPayload = {
-            title: parsedData.title.trim(),
-            date: new Date().toISOString(),
-            payer_email: parsedData.payer_email,
-            items: parsedData.items.map((item) => {
-    
-    // Deep Copy & Null-Beträge filtern
-    let finalSplits = item.splits ? item.splits.map(s => ({ 
-        ...s
-    })) : [];
-    
-    finalSplits = finalSplits.filter(s => Math.abs(s.amount) >= 0.01);
-
-    // Sicherheitsschicht für 0,00€ Artikel 
-    if (finalSplits.length === 0) {
-        finalSplits.push({
-            user_email: parsedData!.payer_email,
-            amount: 0.00
-        });
-    }
-
-    return {
-        name: item.name,
-        quantity: item.quantity || 1.0,
-        unit_price: item.unit_price !== undefined ? item.unit_price : item.total_price,
-        total_price: item.total_price,
-        category: item.category || 'Lebensmittel',
-        splits: finalSplits
-    };
-})
-        };
-
-        // 3. Request senden
-        try {
-            await apiFetch('/transactions/', {
-                method: 'POST',
-                body: JSON.stringify(strictPayload)
-            });
-            alert('🎉 Kassenbon erfolgreich in der Datenbank gespeichert!');
-            parsedData = null; 
-            files = null;
-            showSummary = false;
-        } catch (error: any) {
-            errorMessage = error.message; 
-        } finally {
-            isLoading = false;
-        }
-    }
-
-    function getSplitSum(item: Item): number {
-        if (!item.splits) return 0;
-        return item.splits.reduce((sum, split) => sum + split.amount, 0);
-    }
-
-    // --- Derived Data ---
-    let incompleteItems: Item[] = $derived.by(() => {
-        if (!parsedData) return [];
-        return parsedData.items.filter(item => !checkIsComplete(item));
-    });
-
+    // --- Derived ---
     let summaryTotals: { name: string, amount: number }[] = $derived.by(() => {
         if (!parsedData) return [];
         const totals: Record<string, { name: string, amount: number }> = {};
@@ -169,7 +91,15 @@
         return Object.values(totals);
     });
 
-    let totalItemsCount = $derived(parsedData ? parsedData.items.length : 0);
+    // In src/routes/add-receipt/+page.svelte (oder edit-receipt)
+let incompleteItems: Item[] = $derived(
+    parsedData!.items.filter((i: Item) => {
+        const _dependency = i.splits; 
+        return !receiptLogic.checkIsComplete(i);
+    }) || []
+);
+
+    let totalItemsCount = $derived(parsedData!.items?.length || 0);
     let completeItemsCount = $derived(totalItemsCount - incompleteItems.length);
     let globalProgress = $derived(totalItemsCount === 0 ? 0 : (completeItemsCount / totalItemsCount) * 100);
 
