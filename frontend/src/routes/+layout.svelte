@@ -1,42 +1,29 @@
 <script lang="ts">
-    import { page } from '$app/stores';
-    import { goto, beforeNavigate } from '$app/navigation';
-    import { token } from '$lib/stores';
-    import { onMount } from 'svelte';
-    
     import '../app.css';
     import Header from '$lib/components/Header.svelte';
+    import { onMount } from 'svelte';
+    import { token, currentUser } from '$lib/stores';
+    import { apiFetch } from '$lib/api';
     import { fade } from 'svelte/transition';
 
     let { children } = $props();
 
-    onMount(() => {
-        checkAuth($page.url.pathname);
-    });
-
-    beforeNavigate((navigation) => {
-        const targetPath = navigation.to?.url.pathname;
-        if (targetPath) {
-            checkAuth(targetPath);
+    onMount(async () => {
+        // Wenn ein Token da ist, aber noch keine User-Daten (oder um sie zu aktualisieren)
+        if ($token && !$currentUser) {
+            try {
+                // apiFetch wirft dank unseres vorherigen Updates automatisch einen 
+                // Error und loggt den User aus, falls der Token abgelaufen ist!
+                $currentUser = await apiFetch('/users/me');
+            } catch (e) {
+                console.warn("Sitzung abgelaufen");
+            }
         }
     });
-
-    function checkAuth(path: string) {
-        const isPublicPath = path === '/' || path === '/login'; 
-        if (!isPublicPath && !$token) {
-            goto('/');
-        }
-    }
 </script>
 
-<svelte:head>
-    <title>WGSplit</title>
-</svelte:head>
+<Header />
 
-<div class="min-h-screen bg-gray-50 font-sans text-gray-900">
-    <Header />
-
-    <main transition:fade={{ duration: 150 }}>
-        {@render children()}
-    </main>
-</div>
+<main transition:fade={{ duration: 150 }}>
+    {@render children()}
+</main>

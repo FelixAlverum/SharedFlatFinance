@@ -8,13 +8,12 @@
     let name = $state('');
     let password = $state('');
     let errorMessage = $state('');
-    let isLoading = $state(false); // NEU: Ladezustand
+    let isLoading = $state(false); 
 
-    // NEU: Sauberes Umschalten zwischen Login und Register
     function toggleMode() {
         isLogin = !isLogin;
-        errorMessage = ''; // Fehler beim Wechseln verstecken
-        password = ''; // Aus Sicherheitsgründen Passwort-Feld leeren
+        errorMessage = ''; 
+        password = '';
     }
 
     async function handleSubmit(event: Event) {

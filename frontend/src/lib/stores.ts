@@ -1,20 +1,23 @@
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 
-// 1. Schau nach, ob wir schon einen Token im Browser gespeichert haben
-const initialToken = browser ? window.localStorage.getItem('token') : null;
+function createPersistedStore<T>(key: string, startValue: T) {
+    const storedValue = browser ? localStorage.getItem(key) : null;
+    const initial = storedValue ? JSON.parse(storedValue) : startValue;
+    const store = writable<T>(initial);
 
-// 2. Erstelle reaktive Variablen
-export const token = writable<string | null>(initialToken);
-export const currentUser = writable<{ email: string; name: string } | null>(null);
-
-// 3. Jedes Mal, wenn sich der Token ändert, speichern wir ihn im Browser
-token.subscribe((value) => {
     if (browser) {
-        if (value) {
-            window.localStorage.setItem('token', value);
-        } else {
-            window.localStorage.removeItem('token');
-        }
+        store.subscribe(value => {
+            if (value === null || value === undefined) {
+                localStorage.removeItem(key);
+            } else {
+                localStorage.setItem(key, JSON.stringify(value));
+            }
+        });
     }
-});
+
+    return store;
+}
+
+export const token = createPersistedStore<string | null>('auth_token', null);
+export const currentUser = createPersistedStore<any | null>('current_user', null);

@@ -3,8 +3,7 @@
     import type { User, Item, ParsedData } from '$lib/types';
     import SplitModal from '$lib/components/SplitModal.svelte';
     import ReceiptItemList from '$lib/components/ReceiptItemList.svelte';
-    
-    // Logik-Importe
+    import { goto } from '$app/navigation';
     import * as receiptLogic from '$lib/receipt-logic.svelte';
 
     // --- State ---
@@ -56,7 +55,7 @@
                     date: new Date().toISOString()
                 })
             });
-            window.location.href = '/dashboard';
+            goto('/dashboard');
         } catch (e: any) {
             errorMessage = e.message;
         } finally { isLoading = false; }

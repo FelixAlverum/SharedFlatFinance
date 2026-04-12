@@ -8,8 +8,11 @@
 - hässliche popups erstezen
 - mehrsprachichkeit
 - dark mode
-- mathe auf 4 nachkommastellen
 
 # todo backend
 - besseres error handling
 - requests
+
+
+fertig
+- faire aufteilung der positionen

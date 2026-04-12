@@ -6,6 +6,7 @@
     import SplitModal from '$lib/components/SplitModal.svelte';
     import ReceiptItemList from '$lib/components/ReceiptItemList.svelte';
     import {checkIsComplete} from '$lib/receipt-logic.svelte';
+    import { goto } from '$app/navigation';
     
     // --- State ---
     const txId = page.params.id;
@@ -53,7 +54,7 @@
                 body: JSON.stringify(transactionData)
             });
             alert('Änderungen gespeichert!');
-            window.location.href = '/dashboard';
+            goto('/dashboard');
         } catch (error: any) {
             errorMessage = error.message;
         } finally {
@@ -69,7 +70,7 @@
 
     function handleBack() {
         errorMessage = '';
-        window.location.href = '/dashboard';
+        goto('/dashboard');
     }
 </script>
 
