@@ -2,6 +2,7 @@
     import { apiFetch } from '$lib/api';
     import { onMount } from 'svelte';
     import type { User, Transaction, Balance } from '$lib/types';
+    import ConfirmModal from '$lib/components/ConfirmModal.svelte';
 
     // --- State ---
     let users: User[] = $state([]);
@@ -16,6 +17,9 @@
     let offset = $state(0);
     let hasMore = $state(true);
     let observerNode: HTMLElement | undefined = $state();
+
+    let isDeleteModalOpen = $state(false);
+    let transactionToDelete = $state<string | null>(null);
 
     async function fetchTransactions(reset = false) {
         if (reset) {
@@ -73,30 +77,39 @@
         return () => observer.disconnect();
     });
 
-    async function deleteTransaction(id: string) {
-        // 1. Sicherheitsabfrage
-        if (!confirm('Möchtest du diesen Kassenbon wirklich löschen?')) return;
+function requestDelete(id: string) {
+        transactionToDelete = id;
+        isDeleteModalOpen = true;
+    }
+
+    function cancelDelete() {
+        isDeleteModalOpen = false;
+        transactionToDelete = null;
+    }
+
+    async function executeDelete() {
+        if (!transactionToDelete) return;
+        
+        const id = transactionToDelete;
+        
+        // Modal sofort schließen für bessere UI Responsiveness
+        isDeleteModalOpen = false;
+        transactionToDelete = null;
 
         try {
-            // 2. API-Aufruf (apiFetch erkennt 204 No Content automatisch)
             await apiFetch(`/transactions/${id}`, { method: 'DELETE' });
 
-            // 3. UI-Update: Transaktion sofort aus der lokalen Liste entfernen (Optimistic)
             transactions = transactions.filter(t => t.id !== id);
 
-            // 4. Bilanzen im Hintergrund neu laden, da sich die Schulden geändert haben
             const newBalancesRes = await apiFetch('/balances/');
             balances = (newBalancesRes as Balance[]).sort((a, b) => b.amount - a.amount);
             
-            // Falls die Liste nun zu leer ist, könnten wir fetchTransactions(true) 
-            // aufrufen, um wieder auf 15 Items aufzufüllen.
             if (transactions.length < 5 && hasMore) {
                 await fetchTransactions();
             }
 
         } catch (error: any) {
-            // Falls das Backend den Fehler ablehnt, Fehlermeldung anzeigen
-            errorMessage = 'Fehler beim Löschen: ${error.message}';
+            errorMessage = `Fehler beim Löschen: ${error.message}`;
         }
     }
 
@@ -156,8 +169,7 @@
         ✏️ Edit
     </a>
     <button 
-        onclick={() => deleteTransaction(tx.id)}
-        class="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-semibold rounded-lg border border-red-200 transition"
+        onclick={() => requestDelete(tx.id)} class="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-semibold rounded-lg border border-red-200 transition"
     >
         🗑️
     </button>
@@ -178,3 +190,14 @@
         </section>
     {/if}
 </main>
+
+<ConfirmModal 
+    isOpen={isDeleteModalOpen}
+    title="Kassenbon löschen"
+    message="Möchtest du diesen Kassenbon wirklich dauerhaft löschen? Die Bilanzen aller Mitbewohner werden automatisch neu berechnet."
+    confirmText="Ja, löschen"
+    cancelText="Abbrechen"
+    isDestructive={true}
+    onConfirm={executeDelete}
+    onCancel={cancelDelete}
+/>

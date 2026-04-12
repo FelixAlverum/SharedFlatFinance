@@ -1,11 +1,11 @@
 # todo
 - manueller eintrag
+- statisitken einbauen
 - code reviews
 - bessere aufteilung von architektur
 - db_seed erweitern um transactions, items und itemSplits
 
 # todo frontend
-- hässliche popups erstezen
 - mehrsprachichkeit
 - dark mode
 
@@ -16,3 +16,4 @@
 
 fertig
 - faire aufteilung der positionen
+- hässliche popups erstezen
