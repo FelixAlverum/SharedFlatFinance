@@ -96,7 +96,7 @@
 
         } catch (error: any) {
             // Falls das Backend den Fehler ablehnt, Fehlermeldung anzeigen
-            alert(`Fehler beim Löschen: ${error.message}`);
+            errorMessage = 'Fehler beim Löschen: ${error.message}';
         }
     }
 

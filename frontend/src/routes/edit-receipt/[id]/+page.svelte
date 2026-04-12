@@ -53,7 +53,6 @@
                 method: 'PUT',
                 body: JSON.stringify(transactionData)
             });
-            alert('Änderungen gespeichert!');
             goto('/dashboard');
         } catch (error: any) {
             errorMessage = error.message;
