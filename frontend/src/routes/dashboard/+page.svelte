@@ -1,8 +1,13 @@
 <script lang="ts">
     import { apiFetch } from '$lib/api';
     import { onMount } from 'svelte';
+    import { goto } from '$app/navigation';
     import type { User, Transaction, Balance } from '$lib/types';
+    
     import ConfirmModal from '$lib/components/ConfirmModal.svelte';
+    import Card from '$lib/components/Card.svelte';
+    import Button from '$lib/components/Button.svelte';
+    import Spinner from '$lib/components/Spinner.svelte';
 
     // --- State ---
     let users: User[] = $state([]);
@@ -50,7 +55,6 @@
                     apiFetch('/balances/')
                 ]);
                 users = usersRes;
-                // FIX: Typen für a und b hinzugefügt
                 balances = (balancesRes as Balance[]).sort((a: Balance, b: Balance) => b.amount - a.amount);
                 await fetchTransactions(true);
             } catch (error: any) {
@@ -72,8 +76,6 @@
         }, { rootMargin: '200px' });
 
         if (observerNode) observer.observe(observerNode);
-        
-        // Jetzt ist der Return korrekt, da die umschließende Funktion nicht async ist
         return () => observer.disconnect();
     });
 
@@ -124,69 +126,71 @@ function requestDelete(id: string) {
 
 <main class="max-w-7xl mx-auto p-4 md:p-8">
     <div class="flex justify-between items-center mb-8">
-        <h1 class="text-3xl font-bold text-gray-900">📊 WG Übersicht</h1>
-        <a href="/add-receipt" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2 px-4 rounded-lg shadow transition">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">📊 WG Übersicht</h1>
+        
+        <Button onclick={() => goto('/add-receipt')}>
             + Neuer Bon
-        </a>
+        </Button>
     </div>
 
     {#if isLoading}
-        <div class="flex justify-center py-20 italic text-gray-500">Lade Dashboard...</div>
+        <div class="flex flex-col items-center justify-center py-20 gap-4">
+            <Spinner class="h-10 w-10 border-blue-600 dark:border-blue-400" />
+            <span class="italic text-gray-500 dark:text-gray-400">Lade Dashboard...</span>
+        </div>
     {:else if errorMessage}
-        <div class="bg-red-50 border border-red-200 p-4 rounded-lg text-red-700 mb-8">❌ {errorMessage}</div>
+        <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 rounded-lg text-red-700 dark:text-red-400 mb-8">❌ {errorMessage}</div>
     {:else}
 
         <section class="mb-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {#each balances as balance}
-                <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <Card class="p-6">
                     <div class="text-xs font-bold text-gray-400 uppercase mb-1">{balance.name}</div>
-                    <div class="text-2xl font-black {balance.amount >= 0 ? 'text-green-600' : 'text-red-600'}">
+                    <div class="text-2xl font-black {balance.amount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-500'}">
                         {balance.amount.toFixed(2)} €
                     </div>
-                </div>
+                </Card>
             {/each}
         </section>
 
         <section>
-            <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Historie</h2>
-            <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                <ul class="divide-y divide-gray-200">
+            <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4 border-b dark:border-gray-800 pb-2">Historie</h2>
+            
+            <Card class="overflow-hidden">
+                <ul class="divide-y divide-gray-200 dark:divide-gray-800">
                     {#each transactions as tx (tx.id)}
-                        <li class="p-4 flex justify-between items-center hover:bg-gray-50 transition">
+                        <li class="p-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
                             <div>
-                                <div class="font-bold text-gray-900">{tx.title}</div>
-                                <div class="text-xs text-gray-500">
+                                <div class="font-bold text-gray-900 dark:text-gray-100">{tx.title}</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">
                                     {getUserName(tx.payer_email)} · {new Date(tx.date).toLocaleDateString()}
                                 </div>
                             </div>
                             <div class="flex items-center gap-4">
-                                <span class="font-bold text-gray-900">{getTransactionTotal(tx).toFixed(2)} €</span>
+                                <span class="font-bold text-gray-900 dark:text-gray-100">{getTransactionTotal(tx).toFixed(2)} €</span>
+                                
                                 <div class="flex items-center gap-2">
-    <a 
-        href="/edit-receipt/{tx.id}"
-        class="px-4 py-2 bg-gray-100 hover:bg-blue-50 text-gray-700 hover:text-blue-600 text-sm font-semibold rounded-lg border border-gray-200 transition"
-    >
-        ✏️ Edit
-    </a>
-    <button 
-        onclick={() => requestDelete(tx.id)} class="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-semibold rounded-lg border border-red-200 transition"
-    >
-        🗑️
-    </button>
-</div>
+                                    <Button variant="secondary" onclick={() => goto(`/edit-receipt/${tx.id}`)}>
+                                        ✏️ Edit
+                                    </Button>
+                                    
+                                    <Button variant="destructive" onclick={() => requestDelete(tx.id)}>
+                                        🗑️
+                                    </Button>
+                                </div>
                             </div>
                         </li>
                     {/each}
                 </ul>
 
-                <div bind:this={observerNode} class="p-8 flex justify-center border-t border-gray-50">
+                <div bind:this={observerNode} class="p-8 flex justify-center border-t border-gray-50 dark:border-gray-800">
                     {#if isFetchingMore}
-                        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                        <Spinner />
                     {:else if !hasMore}
-                        <span class="text-gray-400 text-sm italic">Alle Transaktionen geladen</span>
+                        <span class="text-gray-400 dark:text-gray-500 text-sm italic">Alle Transaktionen geladen</span>
                     {/if}
                 </div>
-            </div>
+            </Card>
         </section>
     {/if}
 </main>

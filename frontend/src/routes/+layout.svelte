@@ -12,8 +12,6 @@
         // Wenn ein Token da ist, aber noch keine User-Daten (oder um sie zu aktualisieren)
         if ($token && !$currentUser) {
             try {
-                // apiFetch wirft dank unseres vorherigen Updates automatisch einen 
-                // Error und loggt den User aus, falls der Token abgelaufen ist!
                 $currentUser = await apiFetch('/users/me');
             } catch (e) {
                 console.warn("Sitzung abgelaufen");
@@ -22,8 +20,12 @@
     });
 </script>
 
-<Header />
+<div class="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 font-sans transition-colors duration-200 flex flex-col">
+    
+    <Header />
 
-<main transition:fade={{ duration: 150 }}>
-    {@render children()}
-</main>
+    <main class="grow" transition:fade={{ duration: 150 }}>
+        {@render children()}
+    </main>
+
+</div>

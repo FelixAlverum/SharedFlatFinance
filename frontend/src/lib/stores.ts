@@ -21,3 +21,4 @@ function createPersistedStore<T>(key: string, startValue: T) {
 
 export const token = createPersistedStore<string | null>('auth_token', null);
 export const currentUser = createPersistedStore<any | null>('current_user', null);
+export const theme = createPersistedStore<'light' | 'dark'>('theme', 'light');
