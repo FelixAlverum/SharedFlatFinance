@@ -10,6 +10,7 @@
 
     const navItems = [
         { path: '/add-receipt', label: '🧾 Bon hochladen' },
+        { path: '/add-transaction', label: '✍️ Manuelle Eingabe' },
         { path: '/dashboard', label: '📊 Übersicht' },
         { path: '/settings', label: '⚙️ Einstellungen' }
     ];
