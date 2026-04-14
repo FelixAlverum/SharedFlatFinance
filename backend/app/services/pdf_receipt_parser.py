@@ -4,8 +4,6 @@ import pdfplumber
 
 def parse_pdf_receipt(file_content: bytes) -> dict:
     items = []
-    
-    # --- NEUE REGEX MUSTER ---
     # Sucht in EINER Zeile: Alles (Name), dann den Preis (z.B. 2,29), dann A oder B, dann evtl. ein Sternchen
     item_pattern = re.compile(r'^(.*?)\s+(-?\d+,\d{2})\s*([AB])\s*\*?$')
     

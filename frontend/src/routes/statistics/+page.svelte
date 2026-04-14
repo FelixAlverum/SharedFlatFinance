@@ -95,7 +95,7 @@
                 <h2 class="text-xl font-bold mb-6 text-gray-800 dark:text-gray-100">Deine Ausgaben in {selectedYear}</h2>
                 
                 {#if spendingOverTime.length > 0}
-                    <div class="flex-1 min-h-[250px] flex items-end gap-2 sm:gap-4 pt-8">
+                    <div class="flex-1 min-h-62.5 flex items-end gap-2 sm:gap-4 pt-8">
                         {#each spendingOverTime as data}
                             <div class="relative flex-1 flex flex-col items-center group h-full justify-end">
                                 <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-10 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs font-bold py-1.5 px-2.5 rounded whitespace-nowrap pointer-events-none z-10 shadow-lg">

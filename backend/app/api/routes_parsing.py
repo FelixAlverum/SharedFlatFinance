@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from app.api.deps import get_current_user
 from app.models.models import User
-from app.services.receipt_parser import parse_pdf_receipt
+from app.services.pdf_receipt_parser import parse_pdf_receipt
 
 router = APIRouter()
 
@@ -17,10 +17,7 @@ async def upload_and_parse_receipt(
     content = await file.read()
     
     try:
-        # Unseren neuen Parser aufrufen!
         parsed_data = parse_pdf_receipt(content)
-        
-        # Den aktuellen User als Bezahler vorschlagen
         parsed_data["payer_email"] = current_user.email
         
         return parsed_data

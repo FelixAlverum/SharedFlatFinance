@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Response, File, UploadFile
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import List
-
+from app.services.parser import parse_receipt
 from app.db.session import get_db
 from app.models.models import Transaction, Item, ItemSplit, User
 from app.schemas.transaction import TransactionCreate, TransactionResponse
@@ -172,3 +172,50 @@ def delete_transaction(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+@router.post("/parse", response_model=TransactionCreate)
+async def upload_and_parse_receipt(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Nimmt ein PDF oder Bild entgegen, parst die Artikel heraus und
+    liefert ein strukturiertes JSON (TransactionCreate) als Entwurf zurück.
+    Speichert noch NICHTS in der Datenbank!
+    """
+    
+    # 1. Dateityp validieren (Security Check)
+    allowed_types = ["application/pdf", "image/jpeg", "image/png"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=f"Dateityp {file.content_type} nicht erlaubt. Nur PDF, JPG oder PNG."
+        )
+
+    # 2. Dateigröße limitieren (z.B. max 10 MB) um Memory Leaks zu vermeiden
+    # FastAPI liest UploadFile standardmäßig stückweise, aber wir speichern es hier in RAM.
+    file_bytes = await file.read()
+    if len(file_bytes) > 10 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Die Datei ist zu groß. Maximal 10 MB erlaubt."
+        )
+
+    try:
+        # 3. Datei parsen (delegiert an den Service)
+        parsed_transaction = await parse_receipt(file_bytes, file.content_type)
+        
+        # 4. Den Uploader automatisch als 'Payer' des Entwurfs setzen
+        parsed_transaction.payer_email = current_user.email
+        
+        return parsed_transaction
+
+    except ValueError as ve:
+        # Fängt Fehler ab, wenn der Parser merkt, dass es z.B. gar kein REWE Bon ist
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Fehler beim Parsen des Dokuments: {str(e)}"
+        )
