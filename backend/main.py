@@ -6,6 +6,7 @@ from app.api import routes_users
 from app.api import routes_transactions
 from app.api import routes_parsing
 from app.api import routes_balances
+from app.api import routes_stats
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI(title=settings.PROJECT_NAME)
@@ -22,6 +23,7 @@ app.include_router(routes_users.router, prefix="/api/users", tags=["Users"])
 app.include_router(routes_transactions.router, prefix="/api/transactions", tags=["Transactions"])
 app.include_router(routes_parsing.router, prefix="/api", tags=["Parsing"])
 app.include_router(routes_balances.router, prefix="/api/balances", tags=["Balances"])
+app.include_router(routes_stats.router, prefix="/api/stats", tags=["Statistics"])
 
 @app.get("/")
 def read_root():

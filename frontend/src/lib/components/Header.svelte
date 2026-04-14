@@ -12,6 +12,7 @@
         { path: '/add-receipt', label: '🧾 Bon hochladen' },
         { path: '/add-transaction', label: '✍️ Manuelle Eingabe' },
         { path: '/dashboard', label: '📊 Übersicht' },
+        { path: '/statistics', label: '📈 Statistik' },
         { path: '/settings', label: '⚙️ Einstellungen' }
     ];
 

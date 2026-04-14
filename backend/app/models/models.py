@@ -25,7 +25,7 @@ class Transaction(Base):
     title = Column(String, nullable=False)
     date = Column(DateTime, default=datetime.datetime.utcnow)
     
-    # Wer hat den gesamten Bon bezahlt?
+    source = Column(String, default="manual", nullable=False)
     payer_email = Column(String, ForeignKey("users.email"))
 
     payer = relationship("User", back_populates="paid_transactions")

@@ -47,14 +47,13 @@ class TransactionBase(BaseModel):
     title: str
     date: Optional[datetime] = None
     payer_email: EmailStr
+    source: str = Field(default="rewe_scan", description="Herkunft: 'manual' oder 'rewe_scan'")
 
 class TransactionCreate(TransactionBase):
     items: List[ItemCreate] # Liste der Items beim Erstellen
 
 class TransactionResponse(TransactionBase):
     id: int
-    # Wir überschreiben date hier explizit. Beim Create ist es Optional, 
-    # aber in der Response (aus der DB) wissen wir, dass es immer gesetzt ist.
     date: datetime 
     items: List[ItemResponse]
     

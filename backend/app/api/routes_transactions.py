@@ -108,7 +108,8 @@ def update_transaction(
         # Kopfdaten der Transaktion aktualisieren
         db_tx.title = tx_in.title
         db_tx.date = tx_in.date or db_tx.date
-        db_tx.payer_email = tx_in.payer_email.lower() # Case-Insensitivity sicherstellen
+        db_tx.payer_email = tx_in.payer_email.lower()
+        db_tx.source = tx_in.source
         
         # Items und Splits löschen
         db.query(Item).filter(Item.transaction_id == tx_id).delete(synchronize_session=False)
