@@ -1,0 +1,17 @@
+.env
+backend/.env
+frontend/.env
+*.db
+*.sqlite3
+ledger.db
+backend/data/
+
+# Python & Node Müll
+**/__pycache__/
+**/venv/
+**/node_modules/
+
+# Frontend Build-Ordner (wird ja von Docker gebaut)
+frontend/build/
+frontend/dist/
+frontend/.svelte-kit/
