@@ -33,24 +33,26 @@ def get_total_spend(db: Session = Depends(get_db)):
 
 
 # --- 2. BELIEBTESTE ITEMS EINES USERS ---
-@router.get("/popular-items", response_model=list[schemas.PopularItem])
-def get_popular_items(
-    limit: int = 5,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
+@router.get("/popular-items")
+def get_popular_items(db: Session = Depends(get_db)):
+    """Zeigt alle Produkte an, aufgeschlüsselt nach JEDEM User (ohne Pfand!)"""
+    
     result = db.query(
+        User.email.label("user_email"),
+        User.name.label("user_name"),
         Item.name,
         func.count(Item.id).label("buy_count"),
         func.sum(ItemSplit.amount).label("total_spend")
     ).join(ItemSplit, Item.id == ItemSplit.item_id)\
-     .filter(ItemSplit.user_email == current_user.email)\
-     .filter(get_no_pfand_filter())\
-     .group_by(Item.name)\
-     .order_by(desc("buy_count"))\
-     .limit(limit).all()
+     .join(User, User.email == ItemSplit.user_email)\
+     .filter(ItemSplit.amount > 0)\
+     .filter(get_no_pfand_filter()) \
+     .group_by(User.email, User.name, Item.name)\
+     .order_by(desc("buy_count")).all()
 
     return [{
+        "user_email": row.user_email,
+        "user_name": row.user_name,
         "name": row.name, 
         "buy_count": row.buy_count, 
         "total_spend": round(row.total_spend or 0, 2)

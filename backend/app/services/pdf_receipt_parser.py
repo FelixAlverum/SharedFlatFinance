@@ -1,6 +1,8 @@
+from datetime import datetime, timezone
 import io
 import re
 import pdfplumber
+from app.schemas.transaction import TransactionCreate
 
 def parse_pdf_receipt(file_content: bytes) -> dict:
     items = []
@@ -29,17 +31,14 @@ def parse_pdf_receipt(file_content: bytes) -> dict:
         if "SUMME" in line.upper():
             break
 
-        # 1. IST ES EIN PRODUKT? (z.B. "FRZ.SCHOKOBROET. 2,29 B")
         item_match = item_pattern.search(line)
         if item_match:
             name_part = item_match.group(1).strip()
             total_price = float(item_match.group(2).replace(',', '.'))
             
-            # Falls wir aus der vorherigen Zeile noch einen Namens-Teil übrig haben
             full_name = f"{pending_name} {name_part}".strip() if pending_name else name_part
-            pending_name = "" # Zurücksetzen
+            pending_name = ""
             
-            # Wir speichern das Produkt erstmal mit Menge 1
             items.append({
                 "name": full_name,
                 "quantity": 1.0,
@@ -74,7 +73,15 @@ def parse_pdf_receipt(file_content: bytes) -> dict:
             else:
                 pending_name = line
 
-    return {
-        "title": "Wocheneinkauf REWE",
-        "items": items
-    }
+    return TransactionCreate(
+            title="Wocheneinkauf REWE",
+            date=datetime.now(timezone.utc),
+            payer_email="dummy@wg.com",
+            source="pdf_scan",
+            items=items
+        )
+
+    # return {
+    #     "title": "Wocheneinkauf REWE",
+    #     "items": items
+    # }

@@ -1,16 +1,22 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Shared Flat Ledger API"
     SQLALCHEMY_DATABASE_URI: str = "sqlite:///./ledger.db"
-    # CORS is critical! This tells the backend to accept requests from your SvelteKit frontend
     BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:4173"]
 
     SECRET_KEY: str = "KurtKoerberSchluesselInDieKassenbuecherDerWG"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
+    
+    GEMINI_API_KEY: Optional[str] = None
 
-    class Config:
-        case_sensitive = True
+    model_config = SettingsConfigDict(
+        env_file=".env", 
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        extra="ignore" # Ignoriert andere Variablen in der .env, die hier nicht definiert sind
+    )
 
 settings = Settings()

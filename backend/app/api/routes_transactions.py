@@ -186,6 +186,7 @@ async def upload_and_parse_receipt(
     """
     
     # 1. Dateityp validieren (Security Check)
+    print('filetype ', file.content_type)
     allowed_types = ["application/pdf", "image/jpeg", "image/png"]
     if file.content_type not in allowed_types:
         raise HTTPException(
@@ -194,8 +195,8 @@ async def upload_and_parse_receipt(
         )
 
     # 2. Dateigröße limitieren (z.B. max 10 MB) um Memory Leaks zu vermeiden
-    # FastAPI liest UploadFile standardmäßig stückweise, aber wir speichern es hier in RAM.
     file_bytes = await file.read()
+    print('len(file_bytes) ', len(file_bytes))
     if len(file_bytes) > 10 * 1024 * 1024:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
@@ -205,9 +206,10 @@ async def upload_and_parse_receipt(
     try:
         # 3. Datei parsen (delegiert an den Service)
         parsed_transaction = await parse_receipt(file_bytes, file.content_type)
+        print('3. parsed_transaction', parsed_transaction)
         
         # 4. Den Uploader automatisch als 'Payer' des Entwurfs setzen
-        parsed_transaction.payer_email = current_user.email
+        # parsed_transaction.payer_email = 'current_user.email'
         
         return parsed_transaction
 
@@ -215,6 +217,7 @@ async def upload_and_parse_receipt(
         # Fängt Fehler ab, wenn der Parser merkt, dass es z.B. gar kein REWE Bon ist
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
     except Exception as e:
+        print(e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Fehler beim Parsen des Dokuments: {str(e)}"

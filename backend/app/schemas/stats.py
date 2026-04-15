@@ -17,3 +17,10 @@ class TimeSeriesData(BaseModel):
 class CategorySpend(BaseModel):
     category: str
     amount: float
+
+class PopularItem(BaseModel):
+    user_email: str
+    user_name: str
+    name: str
+    buy_count: int
+    total_spend: float

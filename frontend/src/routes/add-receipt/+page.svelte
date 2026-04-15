@@ -28,14 +28,16 @@
     });
 
     async function handleUpload() {
-        if (!files) return;
+        if (!files || files.length === 0) return;
         isLoading = true;
         errorMessage = '';
         try {
             const formData = new FormData();
             formData.append('file', files[0]);
-            const response = await apiFetch('/upload-receipt', { method: 'POST', body: formData });
-
+            
+            // Anpassung an die API-Spezifikation: /transactions/parse
+            const response = await apiFetch('/transactions/parse', { method: 'POST', body: formData });
+            
             response.items.forEach((item: Item) => {
                 if (item.name.toUpperCase().includes('PFAND')) {
                     item.splits = users.map(u => ({ user_email: u.email, amount: 0 }));
@@ -47,7 +49,11 @@
             parsedData = response;
         } catch (e: any) {
             errorMessage = e.message;
-        } finally { isLoading = false; }
+        } finally { 
+            isLoading = false; 
+            // Input zurücksetzen, falls derselbe Bon nochmal hochgeladen werden soll
+            files = null; 
+        }
     }
 
     async function saveTransaction() {
@@ -103,7 +109,6 @@
     let totalItemsCount = $derived(parsedData!.items?.length || 0);
     let completeItemsCount = $derived(totalItemsCount - incompleteItems.length);
     let globalProgress = $derived(totalItemsCount === 0 ? 0 : (completeItemsCount / totalItemsCount) * 100);
-
 </script>
 
 {#if parsedData}
@@ -115,30 +120,49 @@
 
     {#if !showSummary}
         <Card class="mb-8 p-6">
-            <div class="flex flex-col md:flex-row gap-4 items-center">
-                <div class="flex-1 w-full relative">
-                    <label for="receipt" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        REWE Kassenbon hochladen (PDF)
-                    </label>
-                    <input 
-                        id="receipt" 
-                        type="file" 
-                        accept=".pdf" 
-                        bind:files={files} 
+            <div class="mb-4">
+                <h2 class="text-lg font-bold text-gray-800 dark:text-gray-200 mb-1">Bon scannen oder hochladen</h2>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Mache ein Foto deines Bons oder lade ein bestehendes Bild / PDF hoch.</p>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 items-center">
+                <label for="camera-upload" class="flex-1 w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg cursor-pointer transition {isLoading ? 'opacity-50 pointer-events-none' : ''}">
+                    <span class="text-lg">📸</span> Foto aufnehmen
+                    <input
+                        id="camera-upload"
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        bind:files={files}
                         onchange={handleUpload}
                         disabled={isLoading}
-                        class="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900/30 dark:file:text-blue-400 dark:hover:file:bg-blue-900/50 disabled:opacity-50 cursor-pointer" 
+                        class="hidden"
                     />
-                </div>
-                {#if isLoading}
-                    <div class="text-blue-600 dark:text-blue-400 font-bold flex items-center gap-2 px-4">
-                        <Spinner class="h-5 w-5 border-blue-600 dark:border-blue-400" />
-                        <span class="animate-pulse">Lese Bon aus...</span>
-                    </div>
-                {/if}
+                </label>
+
+                <label for="file-upload" class="flex-1 w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 text-sm font-bold rounded-lg cursor-pointer transition {isLoading ? 'opacity-50 pointer-events-none' : ''}">
+                    <span class="text-lg">📁</span> Bild / PDF auswählen
+                    <input
+                        id="file-upload"
+                        type="file"
+                        accept=".pdf,image/*"
+                        bind:files={files}
+                        onchange={handleUpload}
+                        disabled={isLoading}
+                        class="hidden"
+                    />
+                </label>
             </div>
+            
+            {#if isLoading}
+                <div class="mt-6 text-blue-600 dark:text-blue-400 font-bold flex items-center justify-center gap-3 px-4 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                    <Spinner class="h-5 w-5 border-blue-600 dark:border-blue-400" />
+                    <span class="animate-pulse">Bon wird von der KI analysiert...</span>
+                </div>
+            {/if}
+            
             {#if errorMessage}
-                <div class="mt-4 text-red-600 dark:text-red-400 text-sm font-semibold">{errorMessage}</div>
+                <div class="mt-4 text-red-600 dark:text-red-400 text-sm font-semibold text-center">{errorMessage}</div>
             {/if}
         </Card>
 
@@ -151,6 +175,7 @@
                             {completeItemsCount} von {totalItemsCount} Artikeln aufgeteilt
                         </span>
                     </div>
+                    
                     <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-3 overflow-hidden">
                         <div 
                             class="h-3 transition-all duration-500 ease-out {completeItemsCount === totalItemsCount ? 'bg-green-500' : 'bg-blue-500'}" 
@@ -163,6 +188,7 @@
                     <div>
                         <Input id="title" label="Titel des Einkaufs" bind:value={parsedData.title} />
                     </div>
+            
                     <div>
                         <label for="payer" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Wer hat bezahlt?</label>
                         <select id="payer" bind:value={parsedData.payer_email} class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 p-2 border bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500 shadow-sm">
