@@ -12,7 +12,7 @@ services:
     volumes:
       - wg_db_data:/data
     env_file:
-      - ./backend/.env # Lädt deinen Gemini API Key etc.
+      - stack.env
     environment:
       - SQLALCHEMY_DATABASE_URI=sqlite:////data/ledger.db
 
@@ -28,7 +28,7 @@ services:
       - backend
     environment:
       - PRIVATE_API_URL=http://backend:8000/api
-      - PUBLIC_API_URL=http://localhost:8000/api 
+      - PUBLIC_API_URL=http://192.168.178.50:8000/api   # hier anpassen was mir portainer gibt
 
 volumes:
   wg_db_data:
