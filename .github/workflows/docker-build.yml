@@ -1,0 +1,27 @@
+name: CI / Docker Build Test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest 
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create Dummy .env files for the build
+        run: |
+          touch .env
+          echo "SQLALCHEMY_DATABASE_URI=sqlite:////data/ledger.db" > backend/.env
+          echo "GEMINI_API_KEY=dummy_key" >> backend/.env
+
+      - name: Build Docker Compose
+        run: docker compose build
