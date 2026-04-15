@@ -1,0 +1,28 @@
+# Git-Dateien
+.git
+.gitignore
+
+# Python-spezifischer Müll
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtuelle Umgebungen (DAS WICHTIGSTE!)
+venv/
+env/
+.env/
+
+# Editor/IDE-Dateien
+.vscode/
+.idea/
+
+# Datenbank-Dateien (Damit deine lokale DB nicht ins Image rutscht)
+*.db
+*.sqlite3
+ledger.db
+
+# Environment-Variablen
+# Die .env wird vom docker-compose geladen, sie darf NICHT ins Image gebacken werden!
+.env

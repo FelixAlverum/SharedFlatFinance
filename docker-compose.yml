@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: wg_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - wg_db_data:/data
+    env_file:
+      - ./backend/.env # Lädt deinen Gemini API Key etc.
+    environment:
+      - SQLALCHEMY_DATABASE_URI=sqlite:////data/ledger.db
+
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: wg_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - PRIVATE_API_URL=http://backend:8000/api
+      - PUBLIC_API_URL=http://localhost:8000/api 
+
+volumes:
+  wg_db_data:
+    name: wg_finance_database

@@ -1,7 +1,8 @@
 import { get } from 'svelte/store';
 import { token } from './stores';
+import { env } from '$env/dynamic/public';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const BASE_URL = env.PUBLIC_API_URL || 'http://localhost:8000/api';
 
 /**
  * Zentraler API-Wrapper für Fetch-Calls.

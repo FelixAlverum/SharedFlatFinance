@@ -80,8 +80,3 @@ def parse_pdf_receipt(file_content: bytes) -> dict:
             source="pdf_scan",
             items=items
         )
-
-    # return {
-    #     "title": "Wocheneinkauf REWE",
-    #     "items": items
-    # }
