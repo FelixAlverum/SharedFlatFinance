@@ -3,6 +3,7 @@ version: '3.8'
 services:
   backend:
     build: 
+      # WICHTIG: context muss auf den Unterordner zeigen, relativ zur docker-compose.yml
       context: ./backend
       dockerfile: Dockerfile
     container_name: wg_backend
@@ -19,17 +20,18 @@ services:
 
   frontend:
     build: 
+      # WICHTIG: context muss auf den Unterordner zeigen
       context: ./frontend
       dockerfile: Dockerfile
     container_name: wg_frontend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "8555:3000"
     depends_on:
       - backend
     environment:
       - PRIVATE_API_URL=http://backend:8000/api
-      - PUBLIC_API_URL=http://192.168.178.50:8000/api   # hier anpassen was mir portainer gibt
+      - PUBLIC_API_URL=http://wilhelm-teiler-2.local:8555/api
 
 volumes:
   wg_db_data:
