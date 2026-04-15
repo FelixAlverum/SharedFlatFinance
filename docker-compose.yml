@@ -11,9 +11,10 @@ services:
       - "8000:8000"
     volumes:
       - wg_db_data:/data
-    env_file:
-      - stack.env
     environment:
+      - GEMINI_API_KEY
+      - SECRET_KEY
+      - BACKEND_CORS_ORIGINS
       - SQLALCHEMY_DATABASE_URI=sqlite:////data/ledger.db
 
   frontend:
