@@ -209,7 +209,7 @@ async def upload_and_parse_receipt(
         print('3. parsed_transaction', parsed_transaction)
         
         # 4. Den Uploader automatisch als 'Payer' des Entwurfs setzen
-        # parsed_transaction.payer_email = 'current_user.email'
+        parsed_transaction.payer_email = current_user.email
         
         return parsed_transaction
 
