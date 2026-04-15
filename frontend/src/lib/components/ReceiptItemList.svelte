@@ -1,7 +1,7 @@
 <script lang="ts">
     import type { Item, User } from '$lib/types';
     import * as logic from '$lib/receipt-logic.svelte';
-    import Button from '$lib/components/Button.svelte';
+    import Button from '$lib/components/ui/Button.svelte';
 
     interface Props {
         items: Item[];

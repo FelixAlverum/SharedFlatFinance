@@ -2,6 +2,10 @@
     import { apiFetch } from '$lib/api';
     import { token, currentUser } from '$lib/stores';
     import { goto } from '$app/navigation';
+    import Button from '$lib/components/ui/Button.svelte';
+    import Card from '$lib/components/ui/Card.svelte';
+    import Input from '$lib/components/ui/Input.svelte';
+    import { fade } from 'svelte/transition';
 
     let isLogin = $state(true);
     let email = $state('');
@@ -59,65 +63,73 @@
     }
 </script>
 
-<main class="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+<main class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4 sm:p-8 transition-colors duration-200">
+    <Card class="p-6 sm:p-8 w-full max-w-md">
         
-        <h1 class="text-2xl font-bold text-center mb-6">
-            {isLogin ? 'Login' : 'Registrieren'}
-        </h1>
+        <div class="text-center mb-8">
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
+                {isLogin ? 'Willkommen zurück' : 'Account erstellen'}
+            </h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                {isLogin ? 'Logge dich in deine WG-Kasse ein' : 'Registriere dich für deine WG-Kasse'}
+            </p>
+        </div>
         
         {#if errorMessage}
-            <div class="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm">
-                {errorMessage}
+            <div transition:fade={{ duration: 150 }} class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-4 rounded-lg mb-6 text-sm border border-red-200 dark:border-red-800 flex items-start gap-3">
+                <span class="text-lg leading-none">⚠️</span>
+                <span>{errorMessage}</span>
             </div>
         {/if}
 
-        <form onsubmit={handleSubmit} class="space-y-4">
-            
+        <form onsubmit={handleSubmit} class="space-y-5">
             {#if !isLogin}
-                <div>
-                    <label for="name" class="block text-sm font-medium text-gray-700">Dein Name</label>
-                    <input id="name" type="text" bind:value={name} required disabled={isLoading} class="mt-1 block w-full rounded border-gray-300 shadow-sm p-2 border disabled:bg-gray-100 disabled:text-gray-500" />
+                <div transition:fade={{ duration: 150 }}>
+                    <Input 
+                        id="name" 
+                        label="Dein Name" 
+                        bind:value={name} 
+                        required 
+                        disabled={isLoading} 
+                        placeholder="z.B. Alex" 
+                    />
                 </div>
             {/if}
 
-            <div>
-                <label for="email" class="block text-sm font-medium text-gray-700">E-Mail</label>
-                <input id="email" type="email" bind:value={email} required disabled={isLoading} class="mt-1 block w-full rounded border-gray-300 shadow-sm p-2 border disabled:bg-gray-100 disabled:text-gray-500" />
-            </div>
+            <Input 
+                id="email" 
+                type="email" 
+                label="E-Mail" 
+                bind:value={email} 
+                required 
+                disabled={isLoading} 
+                placeholder="name@beispiel.de" 
+                autocomplete="email"
+            />
 
-            <div>
-                <label for="password" class="block text-sm font-medium text-gray-700">Passwort</label>
-                <input id="password" type="password" bind:value={password} required disabled={isLoading} class="mt-1 block w-full rounded border-gray-300 shadow-sm p-2 border disabled:bg-gray-100 disabled:text-gray-500" />
-            </div>
+            <Input 
+                id="password" 
+                type="password" 
+                label="Passwort" 
+                bind:value={password} 
+                required 
+                disabled={isLoading} 
+                placeholder="••••••••" 
+                autocomplete={isLogin ? "current-password" : "new-password"}
+            />
 
-            <button 
-                type="submit" 
-                disabled={isLoading}
-                class="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-bold py-2 px-4 rounded transition flex justify-center items-center gap-2"
-            >
-                {#if isLoading}
-                    <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Lädt...
-                {:else}
-                    {isLogin ? 'Einloggen' : 'Registrieren'}
-                {/if}
-            </button>
+            <div class="pt-2">
+                <Button type="submit" {isLoading} class="w-full py-3">
+                    {isLogin ? 'Sicher einloggen' : 'Account erstellen'}
+                </Button>
+            </div>
         </form>
 
-        <div class="mt-4 text-center">
-            <button 
-                type="button" 
-                class="text-sm text-blue-500 hover:underline disabled:text-gray-400 disabled:no-underline" 
-                onclick={toggleMode}
-                disabled={isLoading}
-            >
-                {isLogin ? 'Noch keinen Account? Registrieren' : 'Schon einen Account? Einloggen'}
-            </button>
+        <div class="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700 text-center">
+            <Button variant="ghost" type="button" disabled={isLoading} onclick={toggleMode}>
+                {isLogin ? 'Noch keinen Account? Hier registrieren' : 'Schon einen Account? Hier einloggen'}
+            </Button>
         </div>
 
-    </div>
+    </Card>
 </main>

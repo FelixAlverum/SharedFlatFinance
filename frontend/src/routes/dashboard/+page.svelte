@@ -5,9 +5,9 @@
     import type { User, Transaction, Balance } from '$lib/types';
     
     import ConfirmModal from '$lib/components/ConfirmModal.svelte';
-    import Card from '$lib/components/Card.svelte';
-    import Button from '$lib/components/Button.svelte';
-    import Spinner from '$lib/components/Spinner.svelte';
+    import Card from '$lib/components/ui/Card.svelte';
+    import Button from '$lib/components/ui/Button.svelte';
+    import Spinner from '$lib/components/ui/Spinner.svelte';
 
     // --- State ---
     let users: User[] = $state([]);

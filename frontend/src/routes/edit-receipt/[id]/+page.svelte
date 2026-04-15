@@ -9,10 +9,10 @@
     // --- UI Komponenten ---
     import SplitModal from '$lib/components/SplitModal.svelte';
     import ReceiptItemList from '$lib/components/ReceiptItemList.svelte';
-    import Card from '$lib/components/Card.svelte';
-    import Button from '$lib/components/Button.svelte';
-    import Spinner from '$lib/components/Spinner.svelte';
-    import Input from '$lib/components/Input.svelte';
+    import Card from '$lib/components/ui/Card.svelte';
+    import Button from '$lib/components/ui/Button.svelte';
+    import Spinner from '$lib/components/ui/Spinner.svelte';
+    import Input from '$lib/components/ui/Input.svelte';
     
     // --- State ---
     const txId = page.params.id;
