@@ -31,11 +31,13 @@
         if (!files || files.length === 0) return;
         isLoading = true;
         errorMessage = '';
+        parsedData = null;
+        showSummary = false;
+
         try {
             const formData = new FormData();
             formData.append('file', files[0]);
             
-            // Anpassung an die API-Spezifikation: /transactions/parse
             const response = await apiFetch('/transactions/parse', { method: 'POST', body: formData });
             
             response.items.forEach((item: Item) => {
@@ -51,7 +53,6 @@
             errorMessage = e.message;
         } finally { 
             isLoading = false; 
-            // Input zurücksetzen, falls derselbe Bon nochmal hochgeladen werden soll
             files = null; 
         }
     }
