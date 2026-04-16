@@ -5,35 +5,27 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.models import User
 from app.schemas.user import UserCreate, UserResponse, UserUpdate, Token
-from app.core.security import get_password_hash, verify_password, create_access_token
+from app.core.security import verify_password, create_access_token
 from app.api.deps import get_current_user
+from app.repositories import crud_users
 
 router = APIRouter()
 
 # --- 1. CREATE USER (Registrierung) ---
 @router.post("/", response_model=UserResponse)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.email == user.email).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    hashed_pwd = get_password_hash(user.password)
-    new_user = User(email=user.email, name=user.name, hashed_password=hashed_pwd)
-    
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    return new_user
+    try:
+        return crud_users.create_user(db, user)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 # --- 2. LOGIN (Generiert den Token) ---
 @router.post("/login", response_model=Token)
 def login_for_access_token(
-    # OAuth2PasswordRequestForm erwartet form-data (username & password)
     form_data: OAuth2PasswordRequestForm = Depends(), 
     db: Session = Depends(get_db)
 ):
-    # Bei OAuth2 heißt das Feld immer "username", wir nutzen aber die Email
-    user = db.query(User).filter(User.email == form_data.username).first()
+    user = crud_users.get_user_by_email(db, form_data.username)
     
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
@@ -42,7 +34,6 @@ def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Token erstellen
     access_token = create_access_token(subject=user.email)
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -51,10 +42,9 @@ def login_for_access_token(
 def get_all_users(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    return db.query(User).all()
+    return crud_users.get_all_users(db)
 
 # --- 4. READ (Das eigene Profil abrufen) ---
-# Durch "Depends(get_current_user)" ist diese Route GESPERRT für nicht-eingeloggte!
 @router.get("/me", response_model=UserResponse)
 def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
@@ -66,18 +56,10 @@ def update_user_me(
     current_user: User = Depends(get_current_user), 
     db: Session = Depends(get_db)
 ):
-    if user_update.name is not None:
-        current_user.name = user_update.name
-    if user_update.password is not None:
-        current_user.hashed_password = get_password_hash(user_update.password)
-        
-    db.commit()
-    db.refresh(current_user)
-    return current_user
+    return crud_users.update_user(db, current_user, user_update)
 
 # --- 6. DELETE (Das eigene Profil löschen) ---
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    db.delete(current_user)
-    db.commit()
+    crud_users.delete_user(db, current_user)
     return None

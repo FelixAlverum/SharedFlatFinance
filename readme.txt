@@ -1,22 +1,24 @@
-# todo
-- code reviews + celanup
-- bessere aufteilung von architektur
+# Allgemein
+- code reviews + clean up
+- bessere architektur
 - db_seed erweitern um transactions, items und itemSplits
 - vorhersagen wer was gekauft hat
 
-# todo frontend
+# feature frontend
 - mehrsprachichkeit
-- bug Header ohne anmeldung klick auf WGSplit --> dashboard
 
-# todo backend
+# feature backend
 - besseres error handling
 - requests
 
-# todo deployment
+# deployment
 - portainer
 - Eigener server?
 - CD implementieren 
 
+# bugs
+- bei edit receipt kommt folgender Fehler ! Interner Fehler beim Update: (sqlite3.IntegrityError) FOREIGN KEY constraint failed [SQL: UPDATE transactions SET payer_email=? WHERE transactions.id = ?] [parameters: ('sven@wg.com', 2)] (Background on this error at: https://sqlalche.me/e/20/gkpj)
+- Header ohne anmeldung klick auf WGSplit --> dashboard
 
 fertig
 - faire aufteilung der positionen
