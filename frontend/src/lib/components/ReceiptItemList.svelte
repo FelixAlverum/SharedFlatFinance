@@ -30,88 +30,95 @@
     function handleToggleAll(item: Item) {
         logic.toggleAll(item, users, items);
     }
+
+    // --- NEU: Funktion zum Löschen einer Zeile ---
+    function deleteItem(index: number) {
+        items = items.filter((_, i) => i !== index);
+    }
 </script>
 
 <div class="hidden lg:block overflow-x-auto">
-    <table class="w-full text-left border-collapse min-w-200">
+    <table class="w-full text-left border-collapse min-w-150">
         <thead>
-            <tr class="bg-gray-100 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 text-xs uppercase tracking-wider border-b border-gray-200 dark:border-gray-800">
-                <th class="p-3 font-semibold w-1/4">Produkt</th>
-                <th class="p-3 font-semibold w-12 text-right">Gesamt</th>
-                {#each users as user}
-                    <th class="p-3 font-semibold w-20 text-center" title={user.name}>
-                        {user.name.substring(0, 6)}
-                    </th>
-                {/each}
-                <th class="p-3 font-semibold w-20 text-center">Alle</th>
-                <th class="p-3 font-semibold w-12 text-center">Edit</th>
+            <tr class="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">
+                <th class="p-3 font-bold w-1/2">Artikel & Preis</th>
+                <th class="p-3 font-bold text-right">Wer zahlt?</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
             {#each items as item, index}
-                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition {getRowClass(item)}">
+                <tr class="{getRowClass(item)} transition-colors">
                     
-                    <td class="p-2">
-                        <input 
-                            type="text" 
-                            bind:value={item.name} 
-                            class="w-full text-sm border-transparent focus:ring-1 focus:ring-blue-500 rounded p-1.5 text-gray-900 dark:text-white {logic.checkIsComplete(item) ? 'bg-transparent' : 'bg-black/5 dark:bg-white/5'}" 
-                        />
-                    </td>
-                    
-                    <td class="p-2 text-right align-middle">
-                        <div class="font-bold text-gray-800 dark:text-gray-200 text-sm whitespace-nowrap">
-                            {item.total_price.toFixed(2)}€
+                    <td class="p-3">
+                        <div class="flex items-center gap-3">
+                            <input 
+                                type="text" 
+                                bind:value={item.name} 
+                                class="font-medium bg-transparent border-none focus:ring-2 focus:ring-blue-500 rounded p-1 -ml-1 flex-1 text-gray-900 dark:text-white" 
+                            />
+                            <span class="font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                                {item.total_price.toFixed(2)}€
+                            </span>
                         </div>
                     </td>
-                    
-                    {#each users as user}
-                        <td class="p-2 text-center">
+
+                    <td class="p-3">
+                        <div class="flex flex-wrap items-center justify-end gap-2">
+                            {#each users as user}
+                                <Button 
+                                    variant={logic.isUserActive(item, user.email) ? 'primary' : 'outline'}
+                                    class="px-3! py-1.5! text-xs"
+                                    onclick={() => handleToggleUser(item, user.email)} 
+                                >
+                                    {user.name.substring(0, 6)}
+                                </Button>
+                            {/each}
+                            
                             <Button 
-                                variant={logic.isUserActive(item, user.email) ? 'primary' : 'outline'}
-                                class="w-full px-2! py-1! text-xs"
-                                onclick={() => handleToggleUser(item, user.email)} 
+                                variant="secondary" 
+                                class="px-3! py-1.5! text-xs" 
+                                onclick={() => handleToggleAll(item)}
                             >
-                                {user.name.substring(0, 6)}
+                                Alle
                             </Button>
-                        </td>
-                    {/each}
-                    
-                    <td class="p-2 text-center">
-                        <Button 
-                            variant="secondary" 
-                            class="w-full px-2! py-1! text-xs" 
-                            onclick={() => handleToggleAll(item)}
-                        >
-                            Alle
-                        </Button>
+                            
+                            <Button 
+                                variant="secondary" 
+                                class="px-3! py-1.5! text-xs flex items-center gap-1" 
+                                onclick={() => openSplitModal(index)}
+                                title="Detail Aufteilung"
+                            >
+                                ✏️
+                            </Button>
+
+                            <Button 
+                                variant="destructive" 
+                                class="px-2! py-1.5! text-xs flex items-center justify-center" 
+                                onclick={() => deleteItem(index)}
+                                title="Artikel löschen"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </Button>
+                        </div>
                     </td>
-                    
-                    <td class="p-2 text-center">
-                        <Button 
-                            variant="secondary" 
-                            class="px-2! py-1! text-xs" 
-                            onclick={() => openSplitModal(index)}
-                        >
-                            ✎
-                        </Button>
-                    </td>
-                    
+
                 </tr>
             {/each}
         </tbody>
     </table>
 </div>
 
-<div class="block lg:hidden divide-y divide-gray-200 dark:divide-gray-800 border-t border-gray-200 dark:border-gray-800">
+<div class="lg:hidden space-y-3 p-3">
     {#each items as item, index}
-        <div class="p-4 transition {getRowClass(item)}">
+        <div class="{getRowClass(item)} p-3 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm transition-colors">
             
-            <div class="flex gap-2 items-center justify-between mb-3 w-full">
+            <div class="flex justify-between items-center mb-3">
                 <input 
                     type="text" 
                     bind:value={item.name} 
-                    class="font-semibold text-sm border-transparent focus:ring-1 focus:ring-blue-500 rounded p-1.5 -ml-1 flex-1 text-gray-900 dark:text-white {logic.checkIsComplete(item) ? 'bg-transparent' : 'bg-black/5 dark:bg-white/5'}" 
+                    class="font-medium bg-transparent border-none focus:ring-2 focus:ring-blue-500 rounded p-1.5 -ml-1 flex-1 text-gray-900 dark:text-white {logic.checkIsComplete(item) ? 'bg-transparent' : 'bg-black/5 dark:bg-white/5'}" 
                 />
                 <span class="font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap ml-2">
                     {item.total_price.toFixed(2)}€
@@ -142,7 +149,18 @@
                     class="px-3! py-1.5! text-xs flex items-center gap-1" 
                     onclick={() => openSplitModal(index)}
                 >
-                    ✎ Edit
+                    ...
+                </Button>
+
+                <Button 
+                    variant="destructive" 
+                    class="px-2! py-1.5! text-xs ml-auto flex items-center justify-center" 
+                    onclick={() => deleteItem(index)}
+                    title="Artikel löschen"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
                 </Button>
             </div>
             

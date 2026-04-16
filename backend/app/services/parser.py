@@ -9,7 +9,7 @@ async def parse_receipt(file_bytes: bytes, mime_type: str) -> TransactionCreate:
     """
     
     if mime_type == "application/pdf":
-        return await parse_pdf_receipt(file_bytes)
+        return parse_pdf_receipt(file_bytes)
         
     elif mime_type in ["image/jpeg", "image/png"]:
         return await _parse_image_ocr(file_bytes)
