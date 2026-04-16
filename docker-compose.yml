@@ -31,7 +31,7 @@ services:
       - backend
     environment:
       - PRIVATE_API_URL=http://backend:8000/api
-      - PUBLIC_API_URL=http://wilhelm-teiler-2.local:8555/api
+      - PUBLIC_API_URL=http://localhost:8000/api
 
 volumes:
   wg_db_data:
