@@ -48,7 +48,9 @@ def login_for_access_token(
 
 # --- 3. READ (Alle Nutzer abrufen) ---
 @router.get("/", response_model=list[UserResponse])
-def get_all_users(db: Session = Depends(get_db)):
+def get_all_users(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     return db.query(User).all()
 
 # --- 4. READ (Das eigene Profil abrufen) ---

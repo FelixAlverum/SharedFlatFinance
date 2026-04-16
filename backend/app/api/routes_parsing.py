@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from app.api.deps import get_current_user
 from app.models.models import User
 from app.services.pdf_receipt_parser import parse_pdf_receipt
+import logging
 
 router = APIRouter()
 
@@ -17,9 +19,10 @@ async def upload_and_parse_receipt(
     content = await file.read()
     
     try:
-        parsed_data = parse_pdf_receipt(content)
+        parsed_data = await run_in_threadpool(parse_pdf_receipt, content)
         parsed_data["payer_email"] = current_user.email
         
         return parsed_data
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Fehler beim Lesen des Bons: {str(e)}")
+        logging.error(f"Error parsing receipt: {e}")
+        raise HTTPException(status_code=500, detail="Ein interner Fehler ist aufgetreten.")

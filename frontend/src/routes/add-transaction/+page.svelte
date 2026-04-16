@@ -170,7 +170,7 @@
 
             <div class="pt-2 border-t border-gray-100 dark:border-gray-700">
                 <div class="flex justify-between items-end mb-3">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Wer ist daran beteiligt?</label>
+                    <span class="block text-sm font-medium text-gray-700 dark:text-gray-300">Wer ist daran beteiligt?</span>
                     <button 
                         type="button" 
                         onclick={toggleAll} 
