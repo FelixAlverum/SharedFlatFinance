@@ -28,7 +28,7 @@ def parse_pdf_receipt(file_content: bytes) -> dict:
                 has_started = True
             continue
 
-        if "SUMME" in line.upper():
+        if "-------------------------------------" in line:
             break
 
         item_match = item_pattern.search(line)
