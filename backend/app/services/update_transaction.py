@@ -1,36 +1,46 @@
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import delete, select
-from app.models import Transaction, Item, ItemSplit
-from app.models import User
+from app.models import Transaction, Item, ItemSplit, User
+from app.schemas.transaction import TransactionCreate
+
+# Logger initialisieren
+logger = logging.getLogger(__name__)
 
 async def update_full_transaction(
     db: AsyncSession, 
     transaction_id: int, 
-    data: TransactionUpdate
+    data: TransactionCreate
 ):
-    # 1. Bestehende Transaktion laden
+    logger.info(f"Starte Update für Transaktion ID {transaction_id}")
+
+    # Transaktion laden
     result = await db.execute(
         select(Transaction).filter(Transaction.id == transaction_id)
     )
     db_transaction = result.scalars().first()
     
     if not db_transaction:
+        logger.error(f"Update fehlgeschlagen: Transaktion ID {transaction_id} existiert nicht.")
         raise ValueError("Transaktion nicht gefunden")
 
+    # Bezahler validieren
     user_result = await db.execute(select(User).filter(User.email == data.payer_email))
     if not user_result.scalars().first():
+        logger.warning(f"Update abgebrochen: Nutzer '{data.payer_email}' nicht im System.")
         raise ValueError(f"Nutzer mit der E-Mail {data.payer_email} existiert nicht im System.")
     
-    # 2. Kopfdaten aktualisieren
+    # Kopfdaten aktualisieren
     db_transaction.title = data.title
     db_transaction.date = data.date
     db_transaction.payer_email = data.payer_email
 
-    # 3. Effizientes Management der Items: Bestehende löschen und neu anlegen
-    # Grund: Diffing von Item-IDs und deren Splits ist fehleranfällig. 
-    # Ein sauberer Re-Insert der Items garantiert Konsistenz mit dem UI-State.
+    logger.debug(f"Kopfdaten aktualisiert. Ersetze nun die Items...")
+
+    # Alte Items löschen (Delete & Re-insert vermeidet komplexes Diffing)
     await db.execute(delete(Item).where(Item.transaction_id == transaction_id))
 
+    # Items und Splits neu anlegen
     for item_data in data.items:
         new_item = Item(
             name=item_data.name,
@@ -43,7 +53,6 @@ async def update_full_transaction(
         db.add(new_item)
         await db.flush()  # ID für das neue Item generieren
 
-        # 4. Splits für dieses Item anlegen
         for split_data in item_data.splits:
             new_split = ItemSplit(
                 item_id=new_item.id,
@@ -52,6 +61,9 @@ async def update_full_transaction(
             )
             db.add(new_split)
 
+    # Speichern und neu laden
     await db.commit()
     await db.refresh(db_transaction)
+    
+    logger.info(f"Erfolgreich aktualisiert: Transaktion ID {transaction_id} ({len(data.items)} Items).")
     return db_transaction
