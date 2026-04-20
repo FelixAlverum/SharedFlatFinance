@@ -1,34 +1,44 @@
-from datetime import datetime, timezone
+import logging
 import io
 import re
 import pdfplumber
+from datetime import datetime, timezone
 from app.schemas.transaction import TransactionCreate
 
-def parse_pdf_receipt(file_content: bytes) -> dict:
-    items = []
-    # Sucht in EINER Zeile: Alles (Name), dann den Preis (z.B. 2,29), dann A oder B, dann evtl. ein Sternchen
-    item_pattern = re.compile(r'^(.*?)\s+(-?\d+,\d{2})\s*([AB])\s*\*?$')
+logger = logging.getLogger(__name__)
+
+def parse_pdf_receipt(file_content: bytes) -> TransactionCreate:
+    logger.info(f"Starte PDF-Parsing. Dateigröße: {len(file_content)} Bytes.")
     
-    # Sucht Mengen wie: "2 Stk x 1,49" oder nur "2 Stk x"
+    items = []
+    item_pattern = re.compile(r'^(.*?)\s+(-?\d+,\d{2})\s*([AB])\s*\*?$')
     qty_pattern = re.compile(r'^(\d+)\s*Stk\s*x\s*(-?\d+,\d{2})?$')
 
     has_started = False 
-    pending_name = "" # Falls ein Name mal so lang ist, dass er über 2 Zeilen geht
+    pending_name = "" 
 
-    with pdfplumber.open(io.BytesIO(file_content)) as pdf:
-        text = ""
-        for page in pdf.pages:
-            text += page.extract_text() + "\n"
+    try:
+        with pdfplumber.open(io.BytesIO(file_content)) as pdf:
+            logger.debug(f"PDF erfolgreich geöffnet. {len(pdf.pages)} Seite(n) gefunden.")
+            pages_text = [page.extract_text() or "" for page in pdf.pages]
+            text = "\n".join(pages_text)
+            
+    except Exception as e:
+        logger.error("Kritischer Fehler: PDF konnte nicht von pdfplumber verarbeitet werden.", exc_info=True)
+        raise ValueError(f"Die Datei konnte nicht als PDF gelesen werden. Details: {str(e)}")
 
     lines = [line.strip() for line in text.split('\n') if line.strip()]
+    logger.debug(f"Text extrahiert: {len(lines)} nicht-leere Zeilen zu prüfen.")
 
-    for line in lines:
+    for i, line in enumerate(lines):
         if not has_started:
             if line.upper() == "EUR":
+                logger.debug(f"Start-Markierung 'EUR' in Zeile {i} gefunden. Beginne Artikel-Extraktion.")
                 has_started = True
             continue
 
         if "-------------------------------------" in line:
+            logger.debug(f"End-Markierung '---' in Zeile {i} gefunden. Beende Extraktion.")
             break
 
         item_match = item_pattern.search(line)
@@ -49,23 +59,26 @@ def parse_pdf_receipt(file_content: bytes) -> dict:
             })
             continue
 
-        # 2. IST ES EINE MENGENANGABE? (z.B. "2 Stk x 1,49")
         qty_match = qty_pattern.search(line)
         if qty_match and len(items) > 0:
             qty = float(qty_match.group(1))
             unit_price_str = qty_match.group(2)
             
-            # Wir holen uns das LETZTE Produkt, das wir gespeichert haben, und korrigieren es!
             last_item = items[-1]
             last_item["quantity"] = qty
             
             if unit_price_str:
                 last_item["unit_price"] = float(unit_price_str.replace(',', '.'))
             else:
-                last_item["unit_price"] = round(last_item["total_price"] / qty, 2)
+                if qty > 0:
+                    last_item["unit_price"] = round(last_item["total_price"] / qty, 2)
+                else:
+                    logger.warning(f"Warnung: Menge 0 gefunden für '{last_item['name']}'. Setze Einzelpreis = Gesamtpreis.")
+                    last_item["unit_price"] = last_item["total_price"]
+            
+            logger.debug(f"Menge aktualisiert für '{last_item['name']}': {qty}x")
             continue
 
-        # 3. IST ES NUR EIN NAME? (Wenn der Name in der nächsten Zeile weitergeht)
         is_tax_line = line.startswith("A=") or line.startswith("B=") or "Steuer" in line
         if not is_tax_line and "EUR" not in line and "Geg." not in line:
             if pending_name:
@@ -73,10 +86,12 @@ def parse_pdf_receipt(file_content: bytes) -> dict:
             else:
                 pending_name = line
 
+    logger.info(f"PDF-Parsing abgeschlossen. {len(items)} Artikel extrahiert.")
+
     return TransactionCreate(
-            title="Wocheneinkauf REWE",
-            date=datetime.now(timezone.utc),
-            payer_email="dummy@wg.com",
-            source="pdf_scan",
-            items=items
-        )
+        title="Wocheneinkauf REWE",
+        date=datetime.now(timezone.utc),
+        payer_email="dummy@wg.com", 
+        source="pdf_scan",
+        items=items
+    )

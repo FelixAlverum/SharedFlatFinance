@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 from PIL import Image
 from google import genai  # Das neue Paket
 from google.genai import types # Für das Schema-Handling
@@ -9,7 +10,8 @@ from pydantic import BaseModel, Field
 from app.schemas.transaction import TransactionCreate
 from app.core.config import settings
 
-# 1. Wir definieren ein Hilfs-Schema, wie die KI uns die Daten liefern SOLL
+logger = logging.getLogger(__name__)
+
 class ExtractedItem(BaseModel):
     name: str = Field(description="Name des Artikels, z.B. 'Milch 3,5%'")
     quantity: float = Field(description="Anzahl. Wenn nicht angegeben, dann 1.0")
@@ -24,15 +26,17 @@ class ExtractedReceipt(BaseModel):
 
 
 async def _parse_image_ocr(file_bytes: bytes) -> TransactionCreate:
-    # Zur Sicherheit loggen wir die ersten Zeichen des Keys, um zu prüfen, ob die .env geladen wurde
-    print(f"DEBUG: Key starts with: {settings.GEMINI_API_KEY[:5] if settings.GEMINI_API_KEY else 'NONE'}")
+    logger.info(f"Start parsing image receipt. File size: {len(file_bytes)} bytes.")
+    api_key_preview = settings.GEMINI_API_KEY[:5] if settings.GEMINI_API_KEY else 'NONE'
+    logger.debug(f"Using Gemini API Key starting with: {api_key_preview}")
     
-    # 2. Client init (MUSS in der Funktion oder nach dem Laden der .env passieren)
     client = genai.Client(api_key=settings.GEMINI_API_KEY)
     
     try:
         image = Image.open(io.BytesIO(file_bytes))
-    except Exception:
+        logger.debug(f"Image successfully loaded. Format: {image.format}, Size: {image.size}")
+    except Exception as e:
+        logger.error(f"Failed to open image: {e}")
         raise ValueError("Bild konnte nicht gelesen werden. Stelle sicher, dass es ein gültiges JPG/PNG ist.")
 
     prompt = """
@@ -41,8 +45,9 @@ async def _parse_image_ocr(file_bytes: bytes) -> TransactionCreate:
     """
 
     try:
-        # 3. Der neue asynchrone Aufruf via client.aio
-        # HINWEIS: Wir nutzen gemini-1.5-flash. Falls Google wieder zickt, geht auch 'gemini-2.0-flash'
+        logger.info("Sending request to Gemini model 'gemini-flash-latest'...")
+        start_time = datetime.now()
+        
         response = await client.aio.models.generate_content(
             model='gemini-flash-latest',
             contents=[prompt, image],
@@ -53,13 +58,17 @@ async def _parse_image_ocr(file_bytes: bytes) -> TransactionCreate:
             )
         )
         
-        # 4. Das Resultat parsen
+        duration = (datetime.now() - start_time).total_seconds()
+        logger.info(f"Received response from Gemini in {duration:.2f} seconds.")
+        
         data = response.parsed
         
-        # Fallback, falls das neue SDK das Pydantic-Objekt mal nicht sauber entpackt
         if data is None:
+            logger.warning("response.parsed was None. Falling back to manual JSON parsing.")
             data_dict = json.loads(response.text)
             data = ExtractedReceipt(**data_dict)
+
+        logger.info(f"Successfully extracted receipt from '{data.title}' with {len(data.items)} items.")
 
         # 5. Mapping auf dein TransactionCreate Schema
         extracted_items = []
@@ -82,4 +91,5 @@ async def _parse_image_ocr(file_bytes: bytes) -> TransactionCreate:
         )
 
     except Exception as e:
+        logger.error("Error during AI parsing or mapping:", exc_info=True)
         raise ValueError(f"KI-Fehler beim Parsen: {str(e)}")
