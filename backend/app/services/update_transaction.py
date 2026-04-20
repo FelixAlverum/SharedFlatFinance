@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import delete, select
 from app.models import Transaction, Item, ItemSplit
+from app.models import User
 
 async def update_full_transaction(
     db: AsyncSession, 
@@ -16,6 +17,10 @@ async def update_full_transaction(
     if not db_transaction:
         raise ValueError("Transaktion nicht gefunden")
 
+    user_result = await db.execute(select(User).filter(User.email == data.payer_email))
+    if not user_result.scalars().first():
+        raise ValueError(f"Nutzer mit der E-Mail {data.payer_email} existiert nicht im System.")
+    
     # 2. Kopfdaten aktualisieren
     db_transaction.title = data.title
     db_transaction.date = data.date
