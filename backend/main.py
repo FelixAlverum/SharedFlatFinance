@@ -4,6 +4,14 @@ from app.core.config import settings
 from app.db.session import engine, Base
 from app.api import routes_users, routes_transactions, routes_balances, routes_stats
 
+import logging
+
+# Setzt das Basis-Loglevel auf INFO
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+
 Base.metadata.create_all(bind=engine)
 app = FastAPI(title=settings.PROJECT_NAME)
 
