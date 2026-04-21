@@ -15,7 +15,7 @@ router = APIRouter()
 def create_transaction(
     tx_in: TransactionCreate, 
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user) # Nur eingeloggte Nutzer dürfen Bons erstellen!
+    current_user: User = Depends(get_current_user)
 ):
     try:
         return crud_transactions.create_transaction(db, tx_in)

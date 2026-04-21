@@ -1,37 +1,85 @@
+import logging
 from sqlalchemy.orm import Session
 from app.models.models import User
 from app.schemas.user import UserCreate, UserUpdate
 from app.core.security import get_password_hash
 
+# Logger initialisieren
+logger = logging.getLogger(__name__)
+
 def get_user_by_email(db: Session, email: str) -> User | None:
-    return db.query(User).filter(User.email == email).first()
+    safe_email = email
+    logger.debug(f"Suche User mit E-Mail: {safe_email}")
+    return db.query(User).filter(User.email == safe_email).first()
+
 
 def get_all_users(db: Session) -> list[User]:
+    logger.debug("Lade alle User aus der Datenbank.")
     return db.query(User).all()
 
+
 def create_user(db: Session, user_in: UserCreate) -> User:
+    safe_email = user_in.email
+    logger.info(f"Versuche neuen User anzulegen: {safe_email}")
+    
     # Check if user exists
-    if get_user_by_email(db, user_in.email):
+    if get_user_by_email(db, safe_email):
+        logger.warning(f"Registrierung fehlgeschlagen: E-Mail '{safe_email}' ist bereits vergeben.")
         raise ValueError("Email already registered")
     
-    hashed_pwd = get_password_hash(user_in.password)
-    new_user = User(email=user_in.email, name=user_in.name, hashed_password=hashed_pwd)
-    
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    return new_user
+    try:
+        hashed_pwd = get_password_hash(user_in.password)
+        new_user = User(
+            email=safe_email, 
+            name=user_in.name, 
+            hashed_password=hashed_pwd
+        )
+        
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        
+        logger.info(f"User erfolgreich angelegt (ID: {new_user.id}).")
+        return new_user
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Kritischer Fehler beim Erstellen des Users '{safe_email}': {str(e)}", exc_info=True)
+        raise e
+
 
 def update_user(db: Session, current_user: User, user_update: UserUpdate) -> User:
-    if user_update.name is not None:
-        current_user.name = user_update.name
-    if user_update.password is not None:
-        current_user.hashed_password = get_password_hash(user_update.password)
+    logger.info(f"Starte Profil-Update für User ID: {current_user.id}")
+    
+    try:
+        if user_update.name is not None:
+            logger.debug(f"Aktualisiere Namen: '{current_user.name}' -> '{user_update.name}'")
+            current_user.name = user_update.name
+            
+        if user_update.password is not None:
+            logger.debug("Aktualisiere Passwort (Hash wird neu generiert).")
+            current_user.hashed_password = get_password_hash(user_update.password)
+            
+        db.commit()
+        db.refresh(current_user)
+        logger.info(f"User ID {current_user.id} erfolgreich aktualisiert.")
+        return current_user
         
-    db.commit()
-    db.refresh(current_user)
-    return current_user
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Fehler beim Update von User ID {current_user.id}: {str(e)}", exc_info=True)
+        raise e
+
 
 def delete_user(db: Session, current_user: User) -> None:
-    db.delete(current_user)
-    db.commit()
+    logger.warning(f"Lösche User ID {current_user.id} ({current_user.email}) unwiderruflich aus der Datenbank.")
+    
+    try:
+        db.delete(current_user)
+        db.commit()
+        logger.info(f"User ID {current_user.id} erfolgreich gelöscht.")
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Fehler beim Löschen des Users ID {current_user.id}: {str(e)}", exc_info=True)
+        raise e

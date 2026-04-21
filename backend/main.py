@@ -2,11 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.db.session import engine, Base
-from app.api import routes_users
-from app.api import routes_transactions
-from app.api import routes_parsing
-from app.api import routes_balances
-from app.api import routes_stats
+from app.api import routes_users, routes_transactions, routes_balances, routes_stats
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI(title=settings.PROJECT_NAME)
@@ -21,7 +17,6 @@ app.add_middleware(
 
 app.include_router(routes_users.router, prefix="/api/users", tags=["Users"])
 app.include_router(routes_transactions.router, prefix="/api/transactions", tags=["Transactions"])
-app.include_router(routes_parsing.router, prefix="/api", tags=["Parsing"])
 app.include_router(routes_balances.router, prefix="/api/balances", tags=["Balances"])
 app.include_router(routes_stats.router, prefix="/api/stats", tags=["Statistics"])
 
