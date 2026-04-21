@@ -149,7 +149,7 @@
                     class="px-3! py-1.5! text-xs flex items-center gap-1" 
                     onclick={() => openSplitModal(index)}
                 >
-                    ...
+                    ✏️
                 </Button>
 
                 <Button 

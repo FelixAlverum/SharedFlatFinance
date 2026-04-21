@@ -1,15 +1,16 @@
 # Allgemein
 - code reviews + clean up
 - bessere architektur
-- db_seed erweitern um transactions, items und itemSplits
 - vorhersagen wer was gekauft hat
+- management für user in der WG + für den User selber
+- nach registrierung auswahl zur WG suche
+- settle up button
 
 # feature frontend
 - mehrsprachichkeit
 
 # feature backend
 - besseres error handling
-- requests
 - duplicates löschen wegen aufteilung in crud und endpoint
 - alle E-mail auf einmal auf lower() umstellen
 
@@ -19,7 +20,7 @@
 + portainer 
 
 # bugs
-- Header ohne anmeldung klick auf WGSplit --> dashboard
+aktuell keine bekannten :)
 
 fertig
 - faire aufteilung der positionen
@@ -29,6 +30,10 @@ fertig
 - dark mode
 - bei edit receipt kommt folgender Fehler ! Interner Fehler beim Update: (sqlite3.IntegrityError) FOREIGN KEY constraint failed [SQL: UPDATE transactions SET payer_email=? WHERE transactions.id = ?] [parameters: ('sven@wg.com', 2)] (Background on this error at: https://sqlalche.me/e/20/gkpj)
 - Bilder vorher bearbeiten (weniger speicher, schwarz weiß, kontrast hoch)
+- requests
+- Header ohne anmeldung klick auf WGSplit --> dashboard
+
+Für Portainer
 
 version: '3.8'
 

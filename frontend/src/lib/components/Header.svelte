@@ -48,8 +48,11 @@
         <div class="flex justify-between h-16">
             
             <div class="flex items-center">
-                <a href="/dashboard" class="text-xl font-bold text-blue-600 dark:text-blue-400 tracking-tight">
-                    WG<span class="text-gray-800 dark:text-white">Split</span>
+                <a 
+                    href={$currentUser ? '/dashboard' : '/'} 
+                    class="text-xl font-bold text-blue-600 dark:text-blue-400 tracking-tight"
+                >
+                WG<span class="text-gray-800 dark:text-white">Split</span>
                 </a>
             </div>
 
