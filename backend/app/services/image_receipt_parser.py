@@ -1,7 +1,7 @@
 import io
 import json
 import logging
-from PIL import Image
+from PIL import Image, ImageEnhance
 from google import genai  # Das neue Paket
 from google.genai import types # Für das Schema-Handling
 from datetime import datetime, timezone
@@ -24,8 +24,29 @@ class ExtractedReceipt(BaseModel):
     date: str | None = Field(default=None, description="Datum im Format YYYY-MM-DD")
     items: list[ExtractedItem]
 
+def _preprocess_image(file_bytes: bytes) -> bytes:
+    try:
+        image = Image.open(io.BytesIO(file_bytes))
+        
+        # Bild Schwarz-Weiß (Graustufen) färben
+        image = image.convert("L") 
+        
+        # 2. Kontrast stark erhöhen
+        enhancer = ImageEnhance.Contrast(image)
+        image = enhancer.enhance(2.0) 
+        
+        # 3. Speicherplatz drastisch reduzieren
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=70, optimize=True) 
+        
+        return output.getvalue()
+        
+    except Exception as e:
+        logger.error(f"Fehler bei der Bildvorverarbeitung: {e}")
+        raise ValueError("Fehler bei der Bildvorverarbeitung. Stelle sicher, dass es ein gültiges JPG/PNG ist.")
 
 async def _parse_image_ocr(file_bytes: bytes) -> TransactionCreate:
+    file_bytes = _preprocess_image(file_bytes)
     logger.info(f"Start parsing image receipt. File size: {len(file_bytes)} bytes.")
     api_key_preview = settings.GEMINI_API_KEY[:5] if settings.GEMINI_API_KEY else 'NONE'
     logger.debug(f"Using Gemini API Key starting with: {api_key_preview}")

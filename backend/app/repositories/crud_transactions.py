@@ -107,8 +107,8 @@ def update_transaction(db: Session, tx_id: int, tx_in: TransactionCreate) -> Tra
         item_ids = [item.id for item in db_tx.items]
         if item_ids:
             logger.debug(f"Lösche alte Splits und Items für Transaktion {tx_id}")
-            db.query(ItemSplit).filter(ItemSplit.item_id.in_(item_ids)).delete(synchronize_session=False)
-            db.query(Item).filter(Item.transaction_id == tx_id).delete(synchronize_session=False)
+            db.query(ItemSplit).filter(ItemSplit.item_id.in_(item_ids)).delete(synchronize_session='fetch')
+            db.query(Item).filter(Item.transaction_id == tx_id).delete(synchronize_session='fetch')
             db.flush()
 
         # 4. NEUE ITEMS & SPLITS EINFÜGEN

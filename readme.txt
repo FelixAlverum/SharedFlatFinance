@@ -10,14 +10,15 @@
 # feature backend
 - besseres error handling
 - requests
+- duplicates löschen wegen aufteilung in crud und endpoint
+- alle E-mail auf einmal auf lower() umstellen
 
 # deployment
-- portainer
-- Eigener server?
-- CD implementieren 
+- Eigener server? Wo URL localfelix.info? welcher provider?
+- CD implementieren
++ portainer 
 
 # bugs
-- bei edit receipt kommt folgender Fehler ! Interner Fehler beim Update: (sqlite3.IntegrityError) FOREIGN KEY constraint failed [SQL: UPDATE transactions SET payer_email=? WHERE transactions.id = ?] [parameters: ('sven@wg.com', 2)] (Background on this error at: https://sqlalche.me/e/20/gkpj)
 - Header ohne anmeldung klick auf WGSplit --> dashboard
 
 fertig
@@ -26,6 +27,8 @@ fertig
 - manueller eintrag
 - statisitken einbauen
 - dark mode
+- bei edit receipt kommt folgender Fehler ! Interner Fehler beim Update: (sqlite3.IntegrityError) FOREIGN KEY constraint failed [SQL: UPDATE transactions SET payer_email=? WHERE transactions.id = ?] [parameters: ('sven@wg.com', 2)] (Background on this error at: https://sqlalche.me/e/20/gkpj)
+- Bilder vorher bearbeiten (weniger speicher, schwarz weiß, kontrast hoch)
 
 version: '3.8'
 
