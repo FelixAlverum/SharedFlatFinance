@@ -21,6 +21,7 @@
     function logout() {
         appState.token = null;
         appState.currentUser = null;
+        appState.addToast('Du wurdest erfolgreich abgemeldet.', 'info');
         closeMenu();
         goto('/');
     }

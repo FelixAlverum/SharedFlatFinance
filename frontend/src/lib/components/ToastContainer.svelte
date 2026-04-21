@@ -11,11 +11,11 @@
     };
 </script>
 
-<div class="fixed bottom-4 right-4 z-100 flex flex-col gap-2 w-full max-w-xs pointer-events-none">
+<div class="fixed top-4 right-4 z-9999 flex flex-col gap-2 w-full max-w-xs pointer-events-none">
     {#each appState.toasts as toast (toast.id)}
         <div
             animate:flip={{ duration: 300 }}
-            in:fly={{ y: 20, duration: 300 }}
+            in:fly={{ y: -20, duration: 300 }}
             out:fly={{ x: 100, duration: 300 }}
             class="pointer-events-auto p-4 rounded-lg shadow-lg flex justify-between items-start gap-3 {styles[toast.type]}"
         >

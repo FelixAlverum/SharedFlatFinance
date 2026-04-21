@@ -51,10 +51,10 @@
             // 4. User-Daten laden
             const userData = await apiFetch('/users/me');
             appState.currentUser = userData;
+            appState.addToast(`Willkommen zurück, ${userData.name}!`, 'success');
 
             // 5. Erfolgreich -> Weiterleitung
-            goto('/add-receipt'); 
-
+            goto('/add-receipt');
         } catch (error: any) {
             errorMessage = error.message;
         } finally {
