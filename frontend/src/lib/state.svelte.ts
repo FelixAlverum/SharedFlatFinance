@@ -65,9 +65,7 @@ class AppState {
 
     addToast(message: string, type: ToastType = 'info', duration = 7000) {
         const id = crypto.randomUUID();
-        this.#toasts.push({ id, message, type, duration });
-
-        // Automatisch nach 'duration' Millisekunden entfernen
+        this.#toasts = [...this.#toasts, { id, message, type, duration }];
         setTimeout(() => {
             this.removeToast(id);
         }, duration);

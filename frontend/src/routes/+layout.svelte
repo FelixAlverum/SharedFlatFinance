@@ -26,5 +26,5 @@
     <main class="grow" transition:fade={{ duration: 150 }}>
         {@render children()}
     </main>
-    <ToastContainer />
 </div>
+<ToastContainer />
