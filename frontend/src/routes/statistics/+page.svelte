@@ -41,7 +41,8 @@
             }
 
         } catch (e: any) {
-            errorMessage = e.message || 'Fehler beim Laden der Statistiken.';
+            // errorMessage = e.message || 'Fehler beim Laden der Statistiken.';
+            // Fehler bereits von apiFetch gelöst, daher könnte diese Zeile redundant sein
         } finally {
             isLoading = false;
         }

@@ -1,6 +1,7 @@
 <script lang="ts">
     import '../app.css';
     import Header from '$lib/components/Header.svelte';
+    import ToastContainer from '$lib/components/ToastContainer.svelte';
     import { onMount } from 'svelte';
     import { apiFetch } from '$lib/api';
     import { fade } from 'svelte/transition';
@@ -21,11 +22,9 @@
 </script>
 
 <div class="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 font-sans transition-colors duration-200 flex flex-col">
-    
     <Header />
-
     <main class="grow" transition:fade={{ duration: 150 }}>
         {@render children()}
     </main>
-
+    <ToastContainer />
 </div>

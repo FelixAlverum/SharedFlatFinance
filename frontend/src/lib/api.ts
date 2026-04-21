@@ -1,33 +1,28 @@
-import { get } from 'svelte/store';
-import { token } from './stores';
+import { appState } from './state.svelte';
 import { env } from '$env/dynamic/public';
 
 const BASE_URL = env.PUBLIC_API_URL || 'http://localhost:8000/api';
 
 /**
  * Zentraler API-Wrapper für Fetch-Calls.
- * Behandelt automatisch JSON-Parsing, Pydantic-Error-Formatting und Auth-Tokens.
+ * Behandelt automatisch JSON-Parsing, Pydantic-Error-Formatting, Auth-Tokens und Toasts.
  */
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {
-    // 1. Hole den aktuellen Token aus dem Store
-    const currentToken = get(token);
-    
-    // 2. Bereite die Header vor
+    const currentToken = appState.token;
     const headers = new Headers(options.headers || {});
     
+    // 1. Token anhängen, falls vorhanden
     if (currentToken) {
         headers.set('Authorization', `Bearer ${currentToken}`);
     }
     
-    // Wenn kein spezieller Content-Type gesetzt ist, gehen wir von JSON aus.
-    // Verhindert, dass FormData (wie beim File-Upload) überschrieben wird.
+    // 2. Content-Type automatisch setzen (außer bei FormData für Bild-Uploads)
     if (!headers.has('Content-Type') && 
         !(options.body instanceof URLSearchParams) && 
         !(options.body instanceof FormData)) {
         headers.set('Content-Type', 'application/json');
     }
 
-    // 3. URL sicher zusammenbauen
     const url = `${BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
     try {
@@ -36,58 +31,56 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
             headers
         });
 
-        // 4. Erfolgreiche Response: Direkt parsen und zurückgeben
+        // --- ERFOLGSFALL ---
         if (response.ok) {
-            // 204 No Content liefert keinen Body
             if (response.status === 204) return null;
             return await response.json();
-        }
-
-        // 5. Fehlerbehandlung: Backend-Response lesen
-        let errorData;
-        try {
-            errorData = await response.json();
-        } catch (e) {
-            // Wenn das Backend hart crasht und kein JSON schickt (z.B. 502 Bad Gateway)
-            throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
-        }
-
-        // 6. FastAPI / Pydantic Error-Parsing
-        let parsedErrorMessage = 'Ein unbekannter Fehler ist aufgetreten.';
-
-        // Typischer 422 Unprocessable Entity (Validierungsfehler) von FastAPI
-        if (response.status === 422 && errorData.detail && Array.isArray(errorData.detail)) {
-            parsedErrorMessage = errorData.detail
-                .map((e: any) => {
-                    const fieldLocation = e.loc ? e.loc[e.loc.length - 1] : 'unbekanntes Feld';
-                    return `Fehler bei '${fieldLocation}': ${e.msg}`;
-                })
-                .join(' | ');
         } 
-        // Normale HTTPException (z.B. 400 Bad Request mit String-Detail)
-        else if (errorData.detail && typeof errorData.detail === 'string') {
-            parsedErrorMessage = errorData.detail;
-        } 
-        // Fallback für andere Backend-Muster
-        else if (errorData.message) {
-            parsedErrorMessage = Array.isArray(errorData.message) 
-                ? errorData.message.map((e: any) => JSON.stringify(e)).join(' | ') 
-                : errorData.message;
-        } 
-        // Absoluter Notnagel
+        
+        // --- FEHLERFALL ---
         else {
-            parsedErrorMessage = typeof errorData === 'object' ? JSON.stringify(errorData) : String(errorData);
-        }
+            const errorData = await response.json().catch(() => ({ detail: 'Unbekannter Fehler' }));
+            let errorMessage = 'Etwas ist schiefgelaufen';
 
-        // Wir werfen einen Error, der nur den sauberen, lesbaren String enthält
-        throw new Error(parsedErrorMessage);
+            // Spezifische Behandlung für FastAPI / Pydantic Validierungsfehler (422)
+            // FastAPI sendet Fehler als Array zurück
+            if (response.status === 422 && Array.isArray(errorData.detail)) {
+                errorMessage = errorData.detail.map((err: any) => {
+                    // Holt das fehlerhafte Feld (z.B. "email" oder "password")
+                    const field = err.loc[err.loc.length - 1];
+                    return `${field}: ${err.msg}`;
+                }).join(' | ');
+            } 
+            // Normale FastAPI HTTPException (z.B. 400 oder 404)
+            else if (typeof errorData.detail === 'string') {
+                errorMessage = errorData.detail;
+            } 
+            // Fallback für andere Formate
+            else if (errorData.message) {
+                errorMessage = errorData.message;
+            }
 
-    } catch (error: any) {
-        // Netzwerkfehler (Server offline, CORS-Probleme, etc.) abfangen
-        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-            throw new Error('Netzwerkfehler: Das Backend ist nicht erreichbar.');
+            // NEU: Wenn der Token abgelaufen oder ungültig ist (401), direkt ausloggen
+            if (response.status === 401) {
+                appState.token = null;
+                appState.currentUser = null;
+                errorMessage = 'Sitzung abgelaufen. Bitte logge dich neu ein.';
+            }
+
+            // Automatischen Toast anzeigen
+            appState.addToast(errorMessage, 'error');
+            
+            throw new Error(errorMessage);
         }
-        // Bereits von uns formatierte Fehler weitergeben
-        throw error;
+    } catch (err: any) {
+        // --- NETZWERKFEHLER (Backend offline) ---
+        if (err.message === 'Failed to fetch') {
+            const networkError = 'Server nicht erreichbar. Überprüfe deine Verbindung.';
+            appState.addToast(networkError, 'error');
+            throw new Error(networkError);
+        }
+        
+        // Alle anderen Fehler einfach weiterreichen
+        throw err;
     }
 }

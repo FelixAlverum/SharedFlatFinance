@@ -35,7 +35,8 @@
             users = usersRes;
             transactionData = txRes;
         } catch (error: any) {
-            errorMessage = error.message;
+            // Fehler bereits von apiFetch gelöst!
+            // errorMessage = `Fehler beim Laden der Transaktion: ${error.message}`;
         } finally {
             isLoading = false;
         }

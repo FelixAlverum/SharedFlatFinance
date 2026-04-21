@@ -1,10 +1,20 @@
 import { browser } from '$app/environment';
 import type { User } from '$lib/types';
 
+export type ToastType = 'success' | 'error' | 'info' | 'warning';
+
+export interface Toast {
+    id: string;
+    message: string;
+    type: ToastType;
+    duration: number;
+}
+
 class AppState {
     #token = $state<string | null>(null);
     #currentUser = $state<User | null>(null);
-    #theme = $state<'light' | 'dark'>('light');
+    #theme = $state<'light' | 'dark'>('dark');
+    #toasts = $state<Toast[]>([]);
 
     constructor() {
         if (browser) {
@@ -49,6 +59,22 @@ class AppState {
             if (value === 'dark') document.documentElement.classList.add('dark');
             else document.documentElement.classList.remove('dark');
         }
+    }
+
+    get toasts() { return this.#toasts; }
+
+    addToast(message: string, type: ToastType = 'info', duration = 7000) {
+        const id = crypto.randomUUID();
+        this.#toasts.push({ id, message, type, duration });
+
+        // Automatisch nach 'duration' Millisekunden entfernen
+        setTimeout(() => {
+            this.removeToast(id);
+        }, duration);
+    }
+
+    removeToast(id: string) {
+        this.#toasts = this.#toasts.filter(t => t.id !== id);
     }
 }
 

@@ -105,9 +105,10 @@
                 method: 'POST',
                 body: JSON.stringify(payload)
             });
+            appState.addToast('Einzeleintrag erfolgreich gespeichert!', 'success');
             goto('/dashboard');
         } catch (e: any) {
-            errorMessage = e.message;
+            // Wurde bereits von apiFetch gelöst!
             isLoading = false;
         }
     }

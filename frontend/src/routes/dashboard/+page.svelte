@@ -8,6 +8,7 @@
     import Card from '$lib/components/ui/Card.svelte';
     import Button from '$lib/components/ui/Button.svelte';
     import Spinner from '$lib/components/ui/Spinner.svelte';
+    import { appState } from '$lib/state.svelte';
 
     // --- State ---
     let users: User[] = $state([]);
@@ -42,7 +43,7 @@
                 hasMore = false;
             }
         } catch (error: any) {
-            errorMessage = error.message;
+            // Fehler bereits von apiFetch gelöst!
         }
     }
 
@@ -58,7 +59,7 @@
                 balances = (balancesRes as Balance[]).sort((a: Balance, b: Balance) => b.amount - a.amount);
                 await fetchTransactions(true);
             } catch (error: any) {
-                errorMessage = error.message;
+                // Fehler bereits von apiFetch gelöst!
             } finally {
                 isLoading = false;
             }
@@ -111,7 +112,9 @@ function requestDelete(id: string) {
             }
 
         } catch (error: any) {
-            errorMessage = `Fehler beim Löschen: ${error.message}`;
+            // errorMessage = `Fehler beim Löschen: ${error.message}`;
+            // Fehler bereits von apiFetch gelöst
+            appState.addToast('Fehler beim Löschen des Kassenbons', 'error');
         }
     }
 

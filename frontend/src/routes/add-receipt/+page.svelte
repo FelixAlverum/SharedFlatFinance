@@ -4,6 +4,7 @@
     import { goto } from '$app/navigation';
     import { onMount } from 'svelte';
     import * as receiptLogic from '$lib/receipt-logic.svelte';
+    import { appState } from '$lib/state.svelte';
     
     // --- UI Komponenten ---
     import SplitModal from '$lib/components/SplitModal.svelte';
@@ -50,7 +51,7 @@
             receiptLogic.applyGlobalFairSplits(response.items);
             parsedData = response;
         } catch (e: any) {
-            errorMessage = e.message;
+            // Wurde bereits von apiFetch gelöst!
         } finally { 
             isLoading = false; 
             files = null; 
@@ -68,9 +69,10 @@
                     date: new Date().toISOString()
                 })
             });
+            appState.addToast('Bon erfolgreich gespeichert!', 'success');
             goto('/dashboard');
         } catch (e: any) {
-            errorMessage = e.message;
+            // Wurde bereits von apiFetch gelöst!
         } finally { isLoading = false; }
     }
     
