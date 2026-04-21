@@ -8,11 +8,13 @@
 
 # feature frontend
 - mehrsprachichkeit
+- Progressive Web App funktionierend implementieren
 
 # feature backend
 - besseres error handling
 - duplicates löschen wegen aufteilung in crud und endpoint
 - alle E-mail auf einmal auf lower() umstellen
+- export aller Transaktionen in eine lesbare CSV "[Artikel] im Wert von [Wert in €] wurde von [User X] bezahlt und gehört [User Y]"
 
 # deployment
 - Eigener server? Wo URL localfelix.info? welcher provider?

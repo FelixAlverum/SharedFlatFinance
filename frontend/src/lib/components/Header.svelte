@@ -1,10 +1,10 @@
 <script lang="ts">
     import { page } from '$app/stores';
     import { slide } from 'svelte/transition';
-    import { token, currentUser, theme } from '$lib/stores';
     import { goto } from '$app/navigation';
     import { browser } from '$app/environment';
     import Button from '$lib/components/ui/Button.svelte';
+    import { appState } from '$lib/state.svelte';
 
     let isMenuOpen = $state(false);
 
@@ -19,25 +19,25 @@
     function closeMenu() { isMenuOpen = false; }
 
     function logout() {
-        $token = null;
-        $currentUser = null;
+        appState.token = null;
+        appState.currentUser = null;
         closeMenu();
         goto('/');
     }
 
     function toggleTheme() {
-        if ($theme === 'light') {
-            $theme = 'dark';
+        if (appState.theme === 'light') {
+            appState.theme = 'dark';
             document.documentElement.classList.add('dark');
         } else {
-            $theme = 'light';
+            appState.theme = 'light';
             document.documentElement.classList.remove('dark');
         }
     }
 
     $effect(() => {
         if (browser) {
-            if ($theme === 'dark') document.documentElement.classList.add('dark');
+            if (appState.theme === 'dark') document.documentElement.classList.add('dark');
             else document.documentElement.classList.remove('dark');
         }
     });
@@ -49,7 +49,7 @@
             
             <div class="flex items-center">
                 <a 
-                    href={$currentUser ? '/dashboard' : '/'} 
+                    href={appState.currentUser ? '/dashboard' : '/'} 
                     class="text-xl font-bold text-blue-600 dark:text-blue-400 tracking-tight"
                 >
                 WG<span class="text-gray-800 dark:text-white">Split</span>
@@ -62,14 +62,14 @@
                     class="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
                     aria-label="Dark Mode umschalten"
                 >
-                    {#if $theme === 'light'}
+                    {#if appState.theme === 'light'}
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
                     {:else}
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
                     {/if}
                 </button>
 
-                {#if $currentUser}
+                {#if appState.currentUser}
                     {#each navItems as item}
                         <a 
                             href={item.path} 
@@ -91,7 +91,7 @@
 
             <div class="flex items-center md:hidden gap-2">
                 <button onclick={toggleTheme} class="p-2 text-gray-500 dark:text-gray-400">
-                    {#if $theme === 'light'}
+                    {#if appState.theme === 'light'}
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
                     {:else}
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
@@ -117,7 +117,7 @@
     {#if isMenuOpen}
         <div transition:slide={{ duration: 200 }} class="md:hidden bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-lg absolute w-full">
             <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                {#if $currentUser}
+                {#if appState.currentUser}
                     {#each navItems as item}
                         <a 
                             href={item.path}

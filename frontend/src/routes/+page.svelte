@@ -1,11 +1,11 @@
 <script lang="ts">
     import { apiFetch } from '$lib/api';
-    import { token, currentUser } from '$lib/stores';
     import { goto } from '$app/navigation';
     import Button from '$lib/components/ui/Button.svelte';
     import Card from '$lib/components/ui/Card.svelte';
     import Input from '$lib/components/ui/Input.svelte';
     import { fade } from 'svelte/transition';
+    import { appState } from '$lib/state.svelte';
 
     let isLogin = $state(true);
     let email = $state('');
@@ -46,11 +46,11 @@
             });
 
             // 3. Token setzen
-            $token = tokenResponse.access_token;
+            appState.token = tokenResponse.access_token;
 
             // 4. User-Daten laden
             const userData = await apiFetch('/users/me');
-            $currentUser = userData;
+            appState.currentUser = userData;
 
             // 5. Erfolgreich -> Weiterleitung
             goto('/add-receipt'); 

@@ -1,10 +1,10 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { apiFetch } from '$lib/api';
-    import { currentUser } from '$lib/stores';
     import { goto } from '$app/navigation';
     import type { User } from '$lib/types';
     import { fade } from 'svelte/transition';
+    import { appState } from '$lib/state.svelte';
 
     // --- State ---
     let users: User[] = $state([]);
@@ -21,9 +21,9 @@
         try {
             users = await apiFetch('/users/');
             // Vorauswahl: Der aktuell eingeloggte User hat meistens auch bezahlt
-            if ($currentUser) {
-                payerEmail = $currentUser.email;
-                involvedEmails = [$currentUser.email];
+            if (appState.currentUser) {
+                payerEmail = appState.currentUser.email;
+                involvedEmails = [appState.currentUser.email];
             }
         } catch (e: any) {
             errorMessage = 'Fehler beim Laden der Benutzer.';

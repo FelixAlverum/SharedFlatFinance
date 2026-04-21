@@ -2,17 +2,17 @@
     import '../app.css';
     import Header from '$lib/components/Header.svelte';
     import { onMount } from 'svelte';
-    import { token, currentUser } from '$lib/stores';
     import { apiFetch } from '$lib/api';
     import { fade } from 'svelte/transition';
+    import { appState } from '$lib/state.svelte';
 
     let { children } = $props();
 
     onMount(async () => {
         // Wenn ein Token da ist, aber noch keine User-Daten (oder um sie zu aktualisieren)
-        if ($token && !$currentUser) {
+        if (appState.token && !appState.currentUser) {
             try {
-                $currentUser = await apiFetch('/users/me');
+                appState.currentUser = await apiFetch('/users/me');
             } catch (e) {
                 console.warn("Sitzung abgelaufen");
             }
