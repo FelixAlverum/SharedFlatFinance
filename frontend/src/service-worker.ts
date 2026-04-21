@@ -7,16 +7,13 @@ import { build, files, version } from '$service-worker';
 
 const sw = self as unknown as ServiceWorkerGlobalScope;
 
-// Erstelle einen eindeutigen Cache-Namen für diesen Build
-const CACHE = `wg-kasse-cache-${version}`;
-
-// Alle Dateien, die SvelteKit generiert hat + alles aus dem static/ Ordner
+const CACHE = `cache-${version}`;
 const ASSETS = [
-    ...build,
-    ...files
+    ...build, // Der gebaute SvelteKit Code
+    ...files  // Alles aus dem static Ordner
 ];
 
-// 1. INSTALLATION: Assets in den Cache laden
+// 1. Install-Event: Cacht alle Assets beim Installieren
 sw.addEventListener('install', (event) => {
     async function addFilesToCache() {
         const cache = await caches.open(CACHE);
@@ -26,7 +23,7 @@ sw.addEventListener('install', (event) => {
     sw.skipWaiting();
 });
 
-// 2. AKTIVIERUNG: Alte Caches löschen, wenn es ein Update gibt
+// 2. Activate-Event: Löscht alte Caches, wenn eine neue Version kommt
 sw.addEventListener('activate', (event) => {
     async function deleteOldCaches() {
         for (const key of await caches.keys()) {
@@ -37,43 +34,32 @@ sw.addEventListener('activate', (event) => {
     sw.clients.claim();
 });
 
-// 3. FETCH: Anfragen abfangen
+// 3. Fetch-Event: WICHTIG! Macht die App "offline ready" und triggert den Install Prompt
 sw.addEventListener('fetch', (event) => {
-    // Ignoriere alles, was kein GET-Request ist (z.B. API POSTs)
     if (event.request.method !== 'GET') return;
-    
-    // Ignoriere Anfragen an deine externe FastAPI
-    if (event.request.url.includes('/api/')) return;
 
     async function respond() {
         const url = new URL(event.request.url);
         const cache = await caches.open(CACHE);
 
-        // Wenn die angefragte Datei zu unseren statischen Assets gehört, 
-        // lade sie SOFORT aus dem Cache (macht die App rasend schnell)
+        // Serviere gecachte Dateien (HTML, CSS, JS, Bilder)
         if (ASSETS.includes(url.pathname)) {
             const cachedResponse = await cache.match(event.request);
             if (cachedResponse) return cachedResponse;
         }
 
-        // Ansonsten versuche es über das Netzwerk
+        // Für API Requests (FastAPI): Versuche Netzwerk, bei Fehler zeige Cache (oder nichts)
         try {
             const response = await fetch(event.request);
-            
-            // Wenn erfolgreich, direkt in den Cache legen für später
             if (response.status === 200) {
                 cache.put(event.request, response.clone());
             }
             return response;
         } catch {
-            // Wenn das Netzwerk fehlschlägt (Offline) und wir es im Cache haben
             const cachedResponse = await cache.match(event.request);
             if (cachedResponse) return cachedResponse;
-            
-            // Im absoluten Notfall (offline und nicht gecacht)
-            return new Response('Du bist offline', { status: 408 });
+            return new Response('Offline', { status: 503 });
         }
     }
-
     event.respondWith(respond());
 });
