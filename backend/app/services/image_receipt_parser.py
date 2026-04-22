@@ -49,7 +49,8 @@ def _preprocess_image(file_bytes: bytes) -> bytes:
 
 async def _parse_image_ocr(file_bytes: bytes) -> TransactionCreate:
     """
-    Analysiert ein Kassenzettel-Bild mit dem lokalen Gemma 4 E2B Modell über Ollama.
+    Analysiert ein Kassenzettel-Bild mit dem lokalen Moondream2 Modell über Ollama.
+    Nutzt Guided Generation via Pydantic JSON Schema.
     """
     client = AsyncClient(host=OLLAMA_HOST)
     file_bytes = _preprocess_image(file_bytes)
@@ -62,71 +63,39 @@ async def _parse_image_ocr(file_bytes: bytes) -> TransactionCreate:
         logger.error(f"Failed to open image: {e}")
         raise ValueError("Bild konnte nicht gelesen werden. Stelle sicher, dass es ein gültiges JPG/PNG ist.")
 
-    prompt = """
-    Du bist ein intelligenter Finanz-Assistent für eine Wohngemeinschaft.
-    Analysiere das angehängte Bild des Kassenzettels.
-    
-    Extrahiere die Daten in exakt diesem JSON-Format:
-    {
-      "title": "Name des Geschäfts (z.B. REWE, ALDI)",
-      "items": [
-        {
-          "name": "Artikelname",
-          "quantity": 1,
-          "unit_price": 0.00,
-          "total_price": 0.00,
-          "category": "Kategorie"
-        }
-      ]
-    }
-    Gib AUSSCHLIESSLICH validiertes JSON zurück. Keinen weiteren Text.
-    """
+    # Der Prompt kann jetzt viel kürzer sein, da das Schema über die API erzwungen wird
+    prompt = "Analysiere das angehängte Bild des Kassenzettels und extrahiere die Daten."
 
     try:
-        logger.info("Sending request to Gemini model 'gemini-flash-latest'...")
+        logger.info("Sending request to moondream ...")
         start_time = datetime.now()
         
         response = await client.chat(
-            model='gemma4:e2b',
+            model='moondream', # Standard-Tag für Moondream 2 in Ollama
             messages=[{
                 'role': 'user',
                 'content': prompt,
                 'images': [file_bytes]
             }],
-            format='json', # Zwingt Ollama, JSON auszugeben
+            # Hier passiert die Magie: Wir übergeben das Pydantic-Schema!
+            format=ExtractedReceipt.model_json_schema(), 
             options={
-                "temperature": 0.0 # Wichtig: 0.0 für deterministische, verlässliche Extraktion
+                "temperature": 0.0 # Wichtig für verlässliche Datenextraktion
             }
         )
         
         duration = (datetime.now() - start_time).total_seconds()
-        logger.info(f"Received response from local Gemma 4 in {duration:.2f} seconds.")
+        raw_content = response['message']['content']
         
-        content = response['message']['content'].strip()
+        logger.info(f"Received response from moondream in {duration:.2f} seconds.")
+        logger.debug(f"Raw Output: {raw_content}")
 
-        # Sicherheits-Cleanup: Falls das Modell Markdown-Ticks (```json) mitschickt
-        if content.startswith("```json"):
-            content = content[7:]
-        if content.startswith("```"):
-            content = content[3:]
-        if content.endswith("```"):
-            content = content[:-3]
-            
-        content = content.strip()
-        
-        # JSON parsen und an das Backend zurückgeben
-        parsed_data = json.loads(content)
-        
-        data = parsed_data
-        
-        if data is None:
-            logger.warning("response.parsed was None. Falling back to manual JSON parsing.")
-            data_dict = json.loads(response.text)
-            data = ExtractedReceipt(**data_dict)
+        # Pydantic validiert den String direkt in deine Python-Objekte
+        data = ExtractedReceipt.model_validate_json(raw_content)
 
         logger.info(f"Successfully extracted receipt from '{data.title}' with {len(data.items)} items.")
 
-        # 5. Mapping auf dein TransactionCreate Schema
+        # Mapping auf dein TransactionCreate Schema
         extracted_items = []
         for item in data.items:
             extracted_items.append({
@@ -140,15 +109,12 @@ async def _parse_image_ocr(file_bytes: bytes) -> TransactionCreate:
 
         return TransactionCreate(
             title=data.title,
-            date=datetime.now(timezone.utc),
+            date=datetime.now(timezone.utc), # Alternativ: data.date falls gewünscht
             payer_email="dummy@wg.com",
             source="camera_scan",
             items=extracted_items
         )
 
-    except json.JSONDecodeError as e:
-        logger.error(f"Fehler beim Parsen der Ollama-Antwort: {content} - Error: {e}")
-        raise ValueError("Gemma 4 hat kein valides JSON zurückgegeben.")
     except Exception as e:
-        logger.error(f"Ollama API Fehler: {e}")
-        raise RuntimeError(f"Fehler bei der Kommunikation mit dem KI-Modell: {str(e)}")
+        logger.error("Error during AI parsing or mapping:", exc_info=True)
+        raise ValueError(f"KI-Fehler beim Parsen mit Moondream: {str(e)}")
