@@ -64,7 +64,7 @@ class AppState {
     get toasts() { return this.#toasts; }
 
     addToast(message: string, type: ToastType = 'info', duration = 7000) {
-        const id = crypto.randomUUID();
+        const id = Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
         this.#toasts = [...this.#toasts, { id, message, type, duration }];
         setTimeout(() => {
             this.removeToast(id);

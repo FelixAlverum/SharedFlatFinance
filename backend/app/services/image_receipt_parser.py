@@ -6,11 +6,13 @@ from google import genai  # Das neue Paket
 from google.genai import types # Für das Schema-Handling
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field
+from ollama import AsyncClient
 
 from app.schemas.transaction import TransactionCreate
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
 
 class ExtractedItem(BaseModel):
     name: str = Field(description="Name des Artikels, z.B. 'Milch 3,5%'")
@@ -45,14 +47,15 @@ def _preprocess_image(file_bytes: bytes) -> bytes:
         logger.error(f"Fehler bei der Bildvorverarbeitung: {e}")
         raise ValueError("Fehler bei der Bildvorverarbeitung. Stelle sicher, dass es ein gültiges JPG/PNG ist.")
 
+
 async def _parse_image_ocr(file_bytes: bytes) -> TransactionCreate:
+    """
+    Analysiert ein Kassenzettel-Bild mit dem lokalen Gemma 4 E2B Modell über Ollama.
+    """
+    client = AsyncClient(host=OLLAMA_HOST)
     file_bytes = _preprocess_image(file_bytes)
     logger.info(f"Start parsing image receipt. File size: {len(file_bytes)} bytes.")
-    api_key_preview = settings.GEMINI_API_KEY[:5] if settings.GEMINI_API_KEY else 'NONE'
-    logger.debug(f"Using Gemini API Key starting with: {api_key_preview}")
-    
-    client = genai.Client(api_key=settings.GEMINI_API_KEY)
-    
+        
     try:
         image = Image.open(io.BytesIO(file_bytes))
         logger.debug(f"Image successfully loaded. Format: {image.format}, Size: {image.size}")
@@ -61,28 +64,61 @@ async def _parse_image_ocr(file_bytes: bytes) -> TransactionCreate:
         raise ValueError("Bild konnte nicht gelesen werden. Stelle sicher, dass es ein gültiges JPG/PNG ist.")
 
     prompt = """
-    Analysiere diesen Kassenbon. Extrahiere Geschäft, Datum und alle Artikel.
-    Antworte ausschließlich im JSON-Format.
+    Du bist ein intelligenter Finanz-Assistent für eine Wohngemeinschaft.
+    Analysiere das angehängte Bild des Kassenzettels.
+    
+    Extrahiere die Daten in exakt diesem JSON-Format:
+    {
+      "title": "Name des Geschäfts (z.B. REWE, ALDI)",
+      "items": [
+        {
+          "name": "Artikelname",
+          "quantity": 1,
+          "unit_price": 0.00,
+          "total_price": 0.00,
+          "category": "Kategorie"
+        }
+      ]
+    }
+    Gib AUSSCHLIESSLICH validiertes JSON zurück. Keinen weiteren Text.
     """
 
     try:
         logger.info("Sending request to Gemini model 'gemini-flash-latest'...")
         start_time = datetime.now()
         
-        response = await client.aio.models.generate_content(
-            model='gemini-flash-latest',
-            contents=[prompt, image],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=ExtractedReceipt, 
-                temperature=0.0
-            )
+        response = await client.chat(
+            model='gemma4:e2b',
+            messages=[{
+                'role': 'user',
+                'content': prompt,
+                'images': [file_bytes]
+            }],
+            format='json', # Zwingt Ollama, JSON auszugeben
+            options={
+                "temperature": 0.0 # Wichtig: 0.0 für deterministische, verlässliche Extraktion
+            }
         )
         
         duration = (datetime.now() - start_time).total_seconds()
-        logger.info(f"Received response from Gemini in {duration:.2f} seconds.")
+        logger.info(f"Received response from local Gemma 4 in {duration:.2f} seconds.")
         
-        data = response.parsed
+        content = response['message']['content'].strip()
+
+        # Sicherheits-Cleanup: Falls das Modell Markdown-Ticks (```json) mitschickt
+        if content.startswith("```json"):
+            content = content[7:]
+        if content.startswith("```"):
+            content = content[3:]
+        if content.endswith("```"):
+            content = content[:-3]
+            
+        content = content.strip()
+        
+        # JSON parsen und an das Backend zurückgeben
+        parsed_data = json.loads(content)
+        
+        data = parsed_data
         
         if data is None:
             logger.warning("response.parsed was None. Falling back to manual JSON parsing.")
@@ -111,6 +147,9 @@ async def _parse_image_ocr(file_bytes: bytes) -> TransactionCreate:
             items=extracted_items
         )
 
+    except json.JSONDecodeError as e:
+        logger.error(f"Fehler beim Parsen der Ollama-Antwort: {content} - Error: {e}")
+        raise ValueError("Gemma 4 hat kein valides JSON zurückgegeben.")
     except Exception as e:
-        logger.error("Error during AI parsing or mapping:", exc_info=True)
-        raise ValueError(f"KI-Fehler beim Parsen: {str(e)}")
+        logger.error(f"Ollama API Fehler: {e}")
+        raise RuntimeError(f"Fehler bei der Kommunikation mit dem KI-Modell: {str(e)}")

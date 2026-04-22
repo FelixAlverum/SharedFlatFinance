@@ -4,7 +4,7 @@ from typing import Optional
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Shared Flat Ledger API"
     SQLALCHEMY_DATABASE_URI: str = "sqlite:///./ledger.db"
-    BACKEND_CORS_ORIGINS: list[str]=["http://192.168.178.50:8000", "http://localhost:8000"]
+    BACKEND_CORS_ORIGINS: list[str]=["http://5.75.148.191:3055","http://localhost:3000","http://127.0.0.1:3000"]
 
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
