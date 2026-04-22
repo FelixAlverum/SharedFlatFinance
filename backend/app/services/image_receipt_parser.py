@@ -38,7 +38,7 @@ def _preprocess_image(file_bytes: bytes) -> bytes:
         
         # 3. Speicherplatz drastisch reduzieren
         output = io.BytesIO()
-        image.save(output, format="JPEG", quality=70, optimize=True) 
+        image.save(output, format="JPEG", quality=95, optimize=True) 
         
         return output.getvalue()
         
@@ -71,16 +71,15 @@ async def _parse_image_ocr(file_bytes: bytes) -> TransactionCreate:
         start_time = datetime.now()
         
         response = await client.chat(
-            model='moondream', # Standard-Tag für Moondream 2 in Ollama
+            model='moondream:latest', 
             messages=[{
                 'role': 'user',
                 'content': prompt,
                 'images': [file_bytes]
             }],
-            # Hier passiert die Magie: Wir übergeben das Pydantic-Schema!
             format=ExtractedReceipt.model_json_schema(), 
             options={
-                "temperature": 0.0 # Wichtig für verlässliche Datenextraktion
+                "temperature": 0.0
             }
         )
         
