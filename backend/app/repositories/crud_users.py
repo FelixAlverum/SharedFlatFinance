@@ -39,7 +39,7 @@ def create_user(db: Session, user_in: UserCreate) -> User:
         db.commit()
         db.refresh(new_user)
         
-        logger.info(f"User erfolgreich angelegt (ID: {new_user.id}).")
+        logger.info(f"User erfolgreich angelegt (E-Mail: {new_user.email}).")
         return new_user
         
     except Exception as e:
@@ -49,7 +49,7 @@ def create_user(db: Session, user_in: UserCreate) -> User:
 
 
 def update_user(db: Session, current_user: User, user_update: UserUpdate) -> User:
-    logger.info(f"Starte Profil-Update für User ID: {current_user.id}")
+    logger.info(f"Starte Profil-Update für User: {current_user.name}")
     
     try:
         if user_update.name is not None:
@@ -62,24 +62,24 @@ def update_user(db: Session, current_user: User, user_update: UserUpdate) -> Use
             
         db.commit()
         db.refresh(current_user)
-        logger.info(f"User ID {current_user.id} erfolgreich aktualisiert.")
+        logger.info(f"User {current_user.name} erfolgreich aktualisiert.")
         return current_user
         
     except Exception as e:
         db.rollback()
-        logger.error(f"Fehler beim Update von User ID {current_user.id}: {str(e)}", exc_info=True)
+        logger.error(f"Fehler beim Update von User {current_user.name}: {str(e)}", exc_info=True)
         raise e
 
 
 def delete_user(db: Session, current_user: User) -> None:
-    logger.warning(f"Lösche User ID {current_user.id} ({current_user.email}) unwiderruflich aus der Datenbank.")
+    logger.warning(f"Lösche User {current_user.name} ({current_user.email}) unwiderruflich aus der Datenbank.")
     
     try:
         db.delete(current_user)
         db.commit()
-        logger.info(f"User ID {current_user.id} erfolgreich gelöscht.")
+        logger.info(f"User {current_user.name} erfolgreich gelöscht.")
         
     except Exception as e:
         db.rollback()
-        logger.error(f"Fehler beim Löschen des Users ID {current_user.id}: {str(e)}", exc_info=True)
+        logger.error(f"Fehler beim Löschen des Users {current_user.name}: {str(e)}", exc_info=True)
         raise e

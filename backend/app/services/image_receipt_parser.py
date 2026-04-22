@@ -1,9 +1,8 @@
 import io
+import os
 import json
 import logging
 from PIL import Image, ImageEnhance
-from google import genai  # Das neue Paket
-from google.genai import types # Für das Schema-Handling
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 from ollama import AsyncClient
