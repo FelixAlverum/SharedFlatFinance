@@ -1,17 +1,15 @@
 import io
-import os
-import json
 import logging
 from PIL import Image, ImageEnhance
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field
-from ollama import AsyncClient
+from google import genai
+from google.genai import types
 
 from app.schemas.transaction import TransactionCreate
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
 
 class ExtractedItem(BaseModel):
     name: str = Field(description="Name des Artikels, z.B. 'Milch 3,5%'")
@@ -48,14 +46,13 @@ def _preprocess_image(file_bytes: bytes) -> bytes:
 
 
 async def _parse_image_ocr(file_bytes: bytes) -> TransactionCreate:
-    """
-    Analysiert ein Kassenzettel-Bild mit dem lokalen Moondream2 Modell über Ollama.
-    Nutzt Guided Generation via Pydantic JSON Schema.
-    """
-    client = AsyncClient(host=OLLAMA_HOST)
     file_bytes = _preprocess_image(file_bytes)
     logger.info(f"Start parsing image receipt. File size: {len(file_bytes)} bytes.")
-        
+    api_key_preview = settings.GEMINI_API_KEY[:5] if settings.GEMINI_API_KEY else 'NONE'
+    logger.debug(f"Using Gemini API Key starting with: {api_key_preview}")
+    
+    client = genai.Client(api_key=settings.GEMINI_API_KEY)
+    
     try:
         image = Image.open(io.BytesIO(file_bytes))
         logger.debug(f"Image successfully loaded. Format: {image.format}, Size: {image.size}")
@@ -63,38 +60,38 @@ async def _parse_image_ocr(file_bytes: bytes) -> TransactionCreate:
         logger.error(f"Failed to open image: {e}")
         raise ValueError("Bild konnte nicht gelesen werden. Stelle sicher, dass es ein gültiges JPG/PNG ist.")
 
-    # Der Prompt kann jetzt viel kürzer sein, da das Schema über die API erzwungen wird
-    prompt = "Analysiere das angehängte Bild des Kassenzettels und extrahiere die Daten."
+    prompt = """
+    Analysiere diesen Kassenbon. Extrahiere Geschäft, Datum und alle Artikel.
+    Antworte ausschließlich im JSON-Format.
+    """
 
     try:
-        logger.info("Sending request to moondream ...")
+        logger.info("Sending request to Gemini model 'gemini-flash-latest'...")
         start_time = datetime.now()
         
-        response = await client.chat(
-            model='moondream:latest', 
-            messages=[{
-                'role': 'user',
-                'content': prompt,
-                'images': [file_bytes]
-            }],
-            format=ExtractedReceipt.model_json_schema(), 
-            options={
-                "temperature": 0.0
-            }
+        response = await client.aio.models.generate_content(
+            model='gemini-flash-latest',
+            contents=[prompt, image],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=ExtractedReceipt, 
+                temperature=0.0
+            )
         )
         
         duration = (datetime.now() - start_time).total_seconds()
-        raw_content = response['message']['content']
+        logger.info(f"Received response from Gemini in {duration:.2f} seconds.")
         
-        logger.info(f"Received response from moondream in {duration:.2f} seconds.")
-        logger.debug(f"Raw Output: {raw_content}")
-
-        # Pydantic validiert den String direkt in deine Python-Objekte
-        data = ExtractedReceipt.model_validate_json(raw_content)
+        data = response.parsed
+        
+        if data is None:
+            logger.warning("response.parsed was None. Falling back to manual JSON parsing.")
+            data_dict = json.loads(response.text)
+            data = ExtractedReceipt(**data_dict)
 
         logger.info(f"Successfully extracted receipt from '{data.title}' with {len(data.items)} items.")
 
-        # Mapping auf dein TransactionCreate Schema
+        # 5. Mapping auf dein TransactionCreate Schema
         extracted_items = []
         for item in data.items:
             extracted_items.append({
@@ -108,7 +105,7 @@ async def _parse_image_ocr(file_bytes: bytes) -> TransactionCreate:
 
         return TransactionCreate(
             title=data.title,
-            date=datetime.now(timezone.utc), # Alternativ: data.date falls gewünscht
+            date=datetime.now(timezone.utc),
             payer_email="dummy@wg.com",
             source="camera_scan",
             items=extracted_items
@@ -116,4 +113,4 @@ async def _parse_image_ocr(file_bytes: bytes) -> TransactionCreate:
 
     except Exception as e:
         logger.error("Error during AI parsing or mapping:", exc_info=True)
-        raise ValueError(f"KI-Fehler beim Parsen mit Moondream: {str(e)}")
+        raise ValueError(f"KI-Fehler beim Parsen: {str(e)}")

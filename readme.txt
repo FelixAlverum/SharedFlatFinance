@@ -3,18 +3,21 @@
 - bessere architektur
 - vorhersagen wer was gekauft hat
 - management für user in der WG + für den User selber
-- nach registrierung auswahl zur WG suche
+- nach registrierung extra seite zur auswahl aller verfügbarer WGs (Suchfunktion) + bestätigungsfunktion für bisherige WG mitglieder
 - settle up button
+- wenn eine Mail im Postfach mit einem elektronischen Kassenzettel landet automatisch zuweisen und bearbeitungsstatus tracken
 
 # feature frontend
 - mehrsprachichkeit
 - Progressive Web App funktionierend implementieren
+- Sortierung nach Datum
 
 # feature backend
 - besseres error handling
 - duplicates löschen wegen aufteilung in crud und endpoint
 - alle E-mail auf einmal auf lower() umstellen
 - export aller Transaktionen in eine lesbare CSV "[Artikel] im Wert von [Wert in €] wurde von [User X] bezahlt und gehört [User Y]"
+- Zeilen bei Kassenzettel hinzufügen für nicht erkannte Artikel
 
 # deployment
 - Eigener server? Wo URL localfelix.info? welcher provider?
@@ -49,8 +52,8 @@ services:
     volumes:
       - wg_db_data:/app/data  
     environment:
-      - GEMINI_API_KEY=[GCP API KEY]
-      - SECRET_KEY="HeimlicherKeyDerKurtKoerberWG"
+      - GEMINI_API_KEY=<Google API Key>
+      - SECRET_KEY="HeimlicherKeyDerWG"
       - SQLALCHEMY_DATABASE_URI="sqlite:///./ledger.db"
       - BACKEND_CORS_ORIGINS='["http://192.168.0.155:3055", "http://localhost:3000", "http://127.0.0.1:3000"]'
       
